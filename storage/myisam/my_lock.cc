@@ -159,7 +159,7 @@ error:
 int my_lock(File fd, int locktype, myf MyFlags) {
   DBUG_TRACE;
   DBUG_PRINT("my", ("fd: %d  Op: %d  MyFlags: %d", fd, locktype, MyFlags));
-  if (my_disable_locking) return 0;
+  if (my_disable_locking) return 0;     // SHOW VARIABLES LIKE '%skip_external_locking%';      -- 默认：ON
 
 #if defined(_WIN32)
   {

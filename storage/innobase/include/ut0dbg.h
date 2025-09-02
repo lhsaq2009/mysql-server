@@ -61,7 +61,7 @@ void ut_set_assert_callback(std::function<void()> &callback);
 #define ut_error ut_dbg_assertion_failed(0, __FILE__, (ulint)__LINE__)
 
 #ifdef UNIV_DEBUG
-/** Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
+/** 调试断言。除非定义 UNIV_DEBUG 否则不执行任何操作；Debug assertion. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_ad(EXPR) ut_a(EXPR)
 /** Debug statement. Does nothing unless UNIV_DEBUG is defined. */
 #define ut_d(EXPR) EXPR

@@ -107,7 +107,7 @@ byte *row_mysql_store_true_var_len(
  returns a pointer to the data.
  @return pointer to the data, we skip the 1 or 2 bytes at the start
  that are used to store the len */
-const byte *row_mysql_read_true_varchar(
+const byte *row_mysql_read_true_varchar(    // 获取 varchar 类型的真实长度
     ulint *len,        /*!< out: variable-length field length */
     const byte *field, /*!< in: field in the MySQL format */
     ulint lenlen);     /*!< in: storage length of len: either 1
@@ -544,7 +544,7 @@ struct mysql_row_templ_t {
 
 #define ROW_PREBUILT_ALLOCATED 78540783
 #define ROW_PREBUILT_FREED 26423527
-
+// MySQL 中使用的 Innobase 表句柄中 ( 有时懒惰 ) 预构建结构的结构；这些用于节省 CPU 时间
 /** A struct for (sometimes lazily) prebuilt structures in an Innobase table
 handle used within MySQL; these are used to save CPU time. */
 
@@ -557,7 +557,7 @@ struct row_prebuilt_t {
   dict_index_t *index;         /*!< current index for a search, if
                                any */
   trx_t *trx;                  /*!< current transaction handle */
-  unsigned sql_stat_start : 1; /*!< TRUE when we start processing of
+  unsigned sql_stat_start : 1; /*!< 当我们开始处理 SQL 语句时为 TRUE：我们可能必须在表上设置「 意向锁 」，创建一致的读取视图 等；TRUE when we start processing of
                               an SQL statement: we may have to set
                               an intention lock on the table,
                               create a consistent read view etc. */
@@ -665,7 +665,7 @@ struct row_prebuilt_t {
                           some selects and updates */
   que_fork_t *sel_graph;  /*!< dummy query graph used in
                           selects */
-  dtuple_t *search_tuple; /*!< prebuilt dtuple used in selects */
+  dtuple_t *search_tuple; /*!< selects 中使用的预构建元组；prebuilt dtuple used in selects */
 
   /** prebuilt dtuple used in selects where the end of range is known */
   dtuple_t *m_stop_tuple;
@@ -988,8 +988,8 @@ void innobase_rename_vc_templ(dict_table_t *table);
 #define ROW_MYSQL_REC_FIELDS 1
 #define ROW_MYSQL_NO_TEMPLATE 2
 #define ROW_MYSQL_DUMMY_TEMPLATE \
-  3 /* dummy template used in    \
-    row_scan_and_check_index */
+  3 /* row_scan_and_check_index 中使用的虚拟模板
+      dummy template used in  row_scan_and_check_index */
 
 /* Values for hint_need_to_fetch_extra_cols */
 #define ROW_RETRIEVE_PRIMARY_KEY 1

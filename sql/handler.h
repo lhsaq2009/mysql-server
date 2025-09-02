@@ -2614,7 +2614,7 @@ static const LEX_CSTRING FK_NAME_DEFAULT_SUFFIX = {STRING_WITH_LEN("_fk_")};
 
 enum enum_tx_isolation : int {
   ISO_READ_UNCOMMITTED,
-  ISO_READ_COMMITTED,
+  ISO_READ_COMMITTED,         // ??
   ISO_REPEATABLE_READ,
   ISO_SERIALIZABLE
 };
@@ -4006,7 +4006,7 @@ class Ft_hints {
     get_partition_handler()
 */
 
-class handler {
+class handler {       // 动态加载外部存储引擎？？
   friend class Partition_handler;
 
  public:
@@ -5132,14 +5132,14 @@ class handler {
     return (ha_rows)0;
   }
 
-  /**
+  /** 通常，在运行 UPDATE 或 DELETE 查询时，我们需要等待其他事务释放它们在给定行上的锁，然后才能读取它并可能更新它。
+      但是，在 READ UNCOMMIT 和 READ COMMITTED 中，如果我们不打算修改行（例如，因为它在 WHERE 失败），
+      我们可以忽略这些锁。这是通过启用“半一致性读取”、调用 try_semi_consistent_read（true）（然后在完成查询后将其设置回 false）来表示的。
     Normally, when running UPDATE or DELETE queries, we need to wait for other
     transactions to release their locks on a given row before we can read it and
     potentially update it. However, in READ UNCOMMITTED and READ COMMITTED, we
-    can ignore these locks if we don't intend to modify the row (e.g., because
-    it failed a WHERE). This is signaled through enabling “semi-consistent
-    read”, by calling try_semi_consistent_read(true) (and then setting it back
-    to false after finishing the query).
+    can ignore these locks if we don't intend to modify the row (e.g., because it failed a WHERE). This is signaled through enabling “semi-consistent
+    read”, by calling try_semi_consistent_read(true) (and then setting it back to false after finishing the query).
 
     If semi-consistent read is enabled, and we are in READ UNCOMMITTED or READ
     COMMITTED, the storage engine is permitted to return rows that are locked
@@ -5177,10 +5177,10 @@ class handler {
    */
   virtual bool was_semi_consistent_read() { return false; }
   /**
+    告诉引擎是否应该避免不必要的锁等待。如果是，在 UPDATE 或 DELETE 中，如果游标下的行被另一个事务锁定，引擎可能会尝试乐观地读取游标下上次提交的行值
     Tell the engine whether it should avoid unnecessary lock waits.
     If yes, in an UPDATE or DELETE, if the row under the cursor was locked
-    by another transaction, the engine may try an optimistic read of
-    the last committed row value under the cursor.
+    by another transaction, the engine may try an optimistic read of the last committed row value under the cursor.
   */
   virtual void try_semi_consistent_read(bool) {}
 
@@ -5406,7 +5406,7 @@ class handler {
   virtual uint lock_count(void) const { return 1; }
 
   /**
-    Is not invoked for non-transactional temporary tables.
+    非事务性临时表不会调用；Is not invoked for non-transactional temporary tables.
 
     @note store_lock() can return more than one lock if the table is MERGE
     or partitioned.

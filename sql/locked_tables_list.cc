@@ -158,7 +158,7 @@ void Locked_tables_list::unlock_locked_tables(THD *thd)
     }
 
     DBUG_ASSERT(thd->get_transaction()->is_empty(Transaction_ctx::STMT));
-    close_thread_tables(thd);
+    close_thread_tables(thd);   // => UNLOCK TABLES ;
     /*
       We rely on the caller to implicitly commit the
       transaction and release transactional locks.

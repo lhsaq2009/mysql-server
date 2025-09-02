@@ -485,12 +485,12 @@ void trx_undo_header_create_log(
 #define trx_undo_header_create_log(undo_page, trx_id, mtr) ((void)0)
 #endif /* !UNIV_HOTBACKUP */
 
-/** Creates a new undo log header in file. NOTE that this function has its own
+/** 在文件中创建新的撤消日志头。请注意，此函数有自己的日志记录类型 MLOG_UNDO_HDR_CREATE。您不得更改此功能的操作！Creates a new undo log header in file. NOTE that this function has its own
  log record type MLOG_UNDO_HDR_CREATE. You must NOT change the operation of
  this function!
  @return header byte offset on page */
 static ulint trx_undo_header_create(
-    page_t *undo_page, /*!< in/out: undo log segment
+    page_t *undo_page, /*!< in/out: 撤消日志段 Header Page，x-latched; 假设上面有 TRX_UNDO_LOG_HDR_SIZE 字节的可用空间；undo log segment
                        header page, x-latched; it is
                        assumed that there is
                        TRX_UNDO_LOG_HDR_SIZE bytes
@@ -507,8 +507,8 @@ static ulint trx_undo_header_create(
 
   ut_ad(mtr && undo_page);
 
-  page_hdr = undo_page + TRX_UNDO_PAGE_HDR;
-  seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
+  page_hdr = undo_page + TRX_UNDO_PAGE_HDR;     // + 38      => Undo Page Header
+  seg_hdr = undo_page + TRX_UNDO_SEG_HDR;       // + 38 + 18 => Undo Log Segment Header
 
   free = mach_read_from_2(page_hdr + TRX_UNDO_PAGE_FREE);
 
@@ -1513,7 +1513,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
 /*================ UNDO LOG ASSIGNMENT AND CLEANUP =====================*/
 
-/** Reuses a cached undo log.
+/** 重新使用缓存的撤销日志；Reuses a cached undo log.
 @param[in,out]	trx	transaction
 @param[in,out]	rseg	rollback segment memory object
 @param[in]	type	type of the log: TRX_UNDO_INSERT or TRX_UNDO_UPDATE

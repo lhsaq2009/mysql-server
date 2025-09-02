@@ -44,30 +44,33 @@ struct THR_LOCK;
 extern ulong locks_immediate, locks_waited;
 
 /*
-  Important: if a new lock type is added, a matching lock description
-             must be added to sql_test.cc's lock_descriptions array.
-*/
-enum thr_lock_type {
+ * 重要：如果添加了新的锁类型，匹配的锁描述必须添加到 sql_test.cc 的 lock_descriptions 数组中。
+ * Important: if a new lock type is added, a matching lock description must be added to sql_test.cc's lock_descriptions array.
+ */
+enum thr_lock_type {          // 表的使用类型；TL 前缀：Tabel Level；todo 如何观测呢？？不像 元数据表可以查看？ 表锁；
+
+  // TL：Tabel Level 缩写
+
   TL_IGNORE = -1,
-  TL_UNLOCK, /* UNLOCK ANY LOCK */
+  TL_UNLOCK,                  /* 解锁任何锁；UNLOCK ANY LOCK */
   /*
-    Parser only! At open_tables() becomes TL_READ or
-    TL_READ_NO_INSERT depending on the binary log format
+    Parser only!
+    At open_tables() becomes TL_READ or TL_READ_NO_INSERT depending on the binary log format
     (SBR/RBR) and on the table category (log table).
-    Used for tables that are read by statements which
-    modify tables.
+
+    用于 由修改表的语句 读取的表
+    Used for tables that are read by statements which modify tables.
   */
   TL_READ_DEFAULT,
-  TL_READ, /* Read lock */
+  TL_READ,                    /* 读锁；Read lock */
   TL_READ_WITH_SHARED_LOCKS,
-  /* High prior. than TL_WRITE. Allow concurrent insert */
-  TL_READ_HIGH_PRIORITY,
-  /* READ, Don't allow concurrent insert */
-  TL_READ_NO_INSERT,
+  TL_READ_HIGH_PRIORITY,      /* 高于写锁的高优先级读锁，允许并发插入；High prior. than TL_WRITE. Allow concurrent insert */
+  TL_READ_NO_INSERT,          /* 读锁；不允许并发插入；READ, Don't allow concurrent insert */
   /*
+   * 写锁定，但允许其它线程 读/写。由 MySQL 中的 BDB 表 用于标记某人 读取/写入表
+
      Write lock, but allow other threads to read / write.
-     Used by BDB tables in MySQL to mark that someone is
-     reading/writing to the table.
+     Used by BDB tables in MySQL to mark that someone is reading/writing to the table.
    */
   TL_WRITE_ALLOW_WRITE,
   /*
@@ -76,21 +79,19 @@ enum thr_lock_type {
   */
   TL_WRITE_CONCURRENT_DEFAULT,
   /*
-    WRITE lock used by concurrent insert. Will allow
-    READ, if one could use concurrent insert on table.
+    并发插入使用的 写锁定。将允许读取，如果可以在表上使用并发插入
+    WRITE lock used by concurrent insert.
+    Will allow READ, if one could use concurrent insert on table.
   */
-  TL_WRITE_CONCURRENT_INSERT,
+  TL_WRITE_CONCURRENT_INSERT, // 8 并发插入使用的写锁
   /*
     parser only! Late bound low_priority flag.
     At open_tables() becomes thd->update_lock_default.
   */
-  TL_WRITE_DEFAULT,
-  /* WRITE lock that has lower priority than TL_READ */
-  TL_WRITE_LOW_PRIORITY,
-  /* Normal WRITE lock */
-  TL_WRITE,
-  /* Abort new lock request with an error */
-  TL_WRITE_ONLY
+  TL_WRITE_DEFAULT,           // 9
+  TL_WRITE_LOW_PRIORITY,      /* 10 优先级低于读锁的写锁；WRITE lock that has lower priority than TL_READ */
+  TL_WRITE,                   /* 11 正常的写锁；LOCK TABLES myISAM WRITE; */
+  TL_WRITE_ONLY               /* Abort new lock request with an error */
 };
 
 enum thr_locked_row_action { THR_DEFAULT, THR_WAIT, THR_NOWAIT, THR_SKIP };
@@ -123,7 +124,7 @@ struct THR_LOCK_INFO {
 struct THR_LOCK_DATA {
   THR_LOCK_INFO *owner{nullptr};
   THR_LOCK_DATA *next{nullptr}, **prev{nullptr};
-  THR_LOCK *lock{nullptr};
+  THR_LOCK *lock{nullptr};      //
   mysql_cond_t *cond{nullptr};
   thr_lock_type type{TL_IGNORE};
   void *status_param{nullptr}; /* Param to status functions */
@@ -138,7 +139,7 @@ struct st_lock_list {
 struct THR_LOCK {
   LIST list;
   mysql_mutex_t mutex;
-  struct st_lock_list read_wait;
+  struct st_lock_list read_wait;          //
   struct st_lock_list read;
   struct st_lock_list write_wait;
   struct st_lock_list write;

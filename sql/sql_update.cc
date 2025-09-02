@@ -106,11 +106,11 @@
 class COND_EQUAL;
 class Item_exists_subselect;
 
-bool Sql_cmd_update::precheck(THD *thd) {
+bool Sql_cmd_update::precheck(THD *thd) {     // 更新语句实际执行的引用消解
   DBUG_TRACE;
 
-  if (!multitable) {
-    if (check_one_table_access(thd, UPDATE_ACL, lex->query_tables)) return true;
+  if (!multitable) {      // 是否多表？单表是进来
+    if (check_one_table_access(thd, UPDATE_ACL, lex->query_tables)) return true;        // =>>
   } else {
     /*
       Ensure that we have UPDATE or SELECT privilege for each table
@@ -267,7 +267,7 @@ static bool check_constant_expressions(List<Item> *values) {
   @returns false if success, true if error
 */
 
-bool Sql_cmd_update::update_single_table(THD *thd) {
+bool Sql_cmd_update::update_single_table(THD *thd) {          // 单表 Update
   DBUG_TRACE;
 
   myf error_flags = MYF(0); /**< Flag for fatal errors */
@@ -287,7 +287,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
   DBUG_ASSERT(table->pos_in_table_list == update_table_ref);
 
-  const bool transactional_table = table->file->has_transactions();
+  const bool transactional_table = table->file->has_transactions(); //
 
   const bool has_update_triggers =
       table->triggers && table->triggers->has_update_triggers();
@@ -296,7 +296,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       has_update_triggers &&
       table->triggers->has_triggers(TRG_EVENT_UPDATE, TRG_ACTION_AFTER);
 
-  List<Item> *update_field_list = &select_lex->item_list;
+  List<Item> *update_field_list = &select_lex->item_list;           // 要更新的字段链表，包括字段名，字段值
 
   if (unit->set_limit(thd, unit->global_parameters()))
     return true; /* purecov: inspected */
@@ -304,12 +304,12 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   ha_rows limit = unit->select_limit_cnt;
   const bool using_limit = limit != HA_POS_ERROR;
 
-  // Used to track whether there are no rows that need to be read
+  // 用于跟踪是否没有需要读取的行；Used to track whether there are no rows that need to be read
   bool no_rows = limit == 0;
 
   THD::killed_state killed_status = THD::NOT_KILLED;
   COPY_INFO update(COPY_INFO::UPDATE_OPERATION, update_field_list,
-                   update_value_list);
+                   update_value_list);      // 赋值
   if (update.add_function_default_columns(table, table->write_set)) return true;
 
   const bool safe_update = thd->variables.option_bits & OPTION_SAFE_UPDATES;
@@ -338,14 +338,14 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     return true; /* purecov: inspected */
 
   /*
-    Reset the field list to remove any hidden fields added by substitute_gc() in
-    the previous execution.
+    重置字段列表以删除 substitute_gc() 在上一次执行中添加的任何隐藏字段
+    Reset the field list to remove any hidden fields added by substitute_gc() in the previous execution.
   */
   select_lex->all_fields = select_lex->fields_list;
 
   /*
-    See if we can substitute expressions with equivalent generated
-    columns in the WHERE and ORDER BY clauses of the UPDATE statement.
+    看看我们是否可以在 UPDATE 的 WHERE 和 ORDER BY 中用等效生成的列替换表达式
+    See if we can substitute expressions with equivalent generated columns in the WHERE and ORDER BY clauses of the UPDATE statement.
     It is unclear if this is best to do before or after the other
     substitutions performed by substitute_for_best_equal_field(). Do
     it here for now, to keep it consistent with how multi-table
@@ -398,7 +398,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       if (remove_eq_conds(thd, conds, &conds, &result))
         return true; /* purecov: inspected */
     } else {
-      if (optimize_cond(thd, &conds, &cond_equal, select_lex->join_list,
+      if (optimize_cond(thd, &conds, &cond_equal, select_lex->join_list,          // =>> 执行优化器优化路径
                         &result))
         return true;
     }
@@ -422,8 +422,8 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   }
 
   /*
-    Also try a second time after locking, to prune when subqueries and
-    stored programs can be evaluated.
+    在锁定后还要尝试第二次，以便在可以计算子查询和存储程序时进行修剪
+    Also try a second time after locking, to prune when subqueries and stored programs can be evaluated.
   */
   if (table->part_info) {
     if (prune_partitions(thd, table, conds))
@@ -443,7 +443,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       return false;
     }
   }
-  // Initialize the cost model that will be used for this table
+  // 初始化将用于此表的成本模型；Initialize the cost model that will be used for this table
   table->init_cost_model(thd->cost_model());
 
   /* Update the table->file->stats.records number */
@@ -493,7 +493,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
     }
   }  // Ends scope for optimizer trace wrapper
 
-  /* If running in safe sql mode, don't allow updates without keys */
+  /* 如果在安全 sql 模式下运行，则不允许没有密钥的更新；If running in safe sql mode, don't allow updates without keys */
   if (table->quick_keys.is_clear_all()) {
     thd->server_status |= SERVER_QUERY_NO_INDEX_USED;
 
@@ -514,7 +514,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   if (select_lex->has_ft_funcs() && init_ftfuncs(thd, select_lex))
     return true; /* purecov: inspected */
 
-  if (table->update_const_key_parts(conds)) return true;
+  if (table->update_const_key_parts(conds)) return true;    // ??
 
   order = simple_remove_const(order, conds);
   bool need_sort;
@@ -524,7 +524,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   {
     ORDER_with_src order_src(order, ESC_ORDER_BY);
     used_index =
-        get_index_for_order(&order_src, &qep_tab, limit, &need_sort, &reverse);
+        get_index_for_order(&order_src, &qep_tab, limit, &need_sort, &reverse);     // TODO 2023-05-26：?? 最多可使用 keys 数量？？？
   }
   if (need_sort) {  // Assign table scan index to check below for modified key
                     // fields:
@@ -557,10 +557,10 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
   unique_ptr_destroy_only<Filesort> fsort;
   unique_ptr_destroy_only<RowIterator> iterator;
 
-  {  // Start of scope for Modification_plan
+  {  // 修改计划范围开始；Start of scope for Modification_plan
     ha_rows rows;
     if (qep_tab.quick())
-      rows = qep_tab.quick()->records;
+      rows = qep_tab.quick()->records;              // TODO 2023-05-31：？？？记录数？此时我只 update 1 条
     else if (!conds && !need_sort && limit != HA_POS_ERROR)
       rows = limit;
     else {
@@ -575,7 +575,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
                            using_filesort, used_key_is_modified, rows);
     DEBUG_SYNC(thd, "planned_single_update");
     if (thd->lex->is_explain()) {
-      bool err = explain_single_table_modification(thd, thd, &plan, select_lex);
+      bool err = explain_single_table_modification(thd, thd, &plan, select_lex);    // TODO 2023-05-26：explan sql ??
       return err;
     }
 
@@ -583,11 +583,11 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
 
     if (used_key_is_modified || order) {
       /*
-        We can't update table directly;  We must first search after all
-        matching rows before updating the table!
+        我们无法直接更新表; 毕竟我们必须首先搜索 在更新表之前匹配行！
+        We can't update table directly;  We must first search after all matching rows before updating the table!
       */
 
-      /* note: We avoid sorting if we sort on the used index */
+      /* 如果我们对使用的索引进行排序，我们避免排序；note: We avoid sorting if we sort on the used index */
       if (using_filesort) {
         /*
           Doing an ORDER BY;  Let filesort find and sort the rows we are going
@@ -624,12 +624,12 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         qep_tab.set_condition(NULL);
       } else {
         /*
-          We are doing a search on a key that is updated. In this case
-          we go trough the matching rows, save a pointer to them and
-          update these in a separate loop based on the pointer. In the end,
-          we get a result file that looks exactly like what filesort uses
-          internally, which allows us to read from it
-          using SortFileIndirectIterator.
+          我们正在对更新的 Key 进行搜索。
+          We are doing a search on a key that is updated.
+          在这种情况下，我们遍历匹配的行，保存指向它们的指针，并根据指针在单独的循环中更新这些行
+          In this case we go trough the matching rows, save a pointer to them and update these in a separate loop based on the pointer.
+          最后，我们得到一个结果文件，看起来与 filesort 内部使用的结果文件完全相同，这允许我们使用 SortFileIndirectIterator 从中读取
+          In the end, we get a result file that looks exactly like what filesort uses internally, which allows us to read from it using SortFileIndirectIterator.
 
           TODO: Find something less ugly.
          */
@@ -650,7 +650,7 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         auto end_semi_consistent_read = create_scope_guard(
             [table] { table->file->try_semi_consistent_read(false); });
 
-        /*
+        /* 全表扫描 ？？
           When we get here, we have one of the following options:
           A. used_index == MAX_KEY
           This means we should use full table scan, and start it with
@@ -749,13 +749,13 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
         qep_tab.set_condition(NULL);
       }
     } else {
-      // No ORDER BY or updated key underway, so we can use a regular read.
-      iterator = init_table_iterator(thd, nullptr, &qep_tab, false,
+      // 没有 ORDER BY 或 更新的 key 正在进行中，因此我们可以使用常规读取；No ORDER BY or updated key underway, so we can use a regular read.
+      iterator = init_table_iterator(thd, nullptr, &qep_tab, false,     // TODO 2023-05-31：??
                                      /*ignore_not_found_rows=*/false);
       if (iterator == nullptr) return true; /* purecov: inspected */
     }
 
-    table->file->try_semi_consistent_read(true);
+    table->file->try_semi_consistent_read(true);              // 一致性读？？
     auto end_semi_consistent_read = create_scope_guard(
         [table] { table->file->try_semi_consistent_read(false); });
 
@@ -810,14 +810,14 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
       }
       DBUG_ASSERT(!thd->is_error());
 
-      if (table->file->was_semi_consistent_read())
+      if (table->file->was_semi_consistent_read())        // TODO 2023-06-01：半一致性读，比如 Read Commited ，以后再看 。。
         continue; /* repeat the read of the same row if it still exists */
 
       table->clear_partial_update_diffs();
 
       store_record(table, record[1]);
       bool is_row_changed = false;
-      if (fill_record_n_invoke_before_triggers(
+      if (fill_record_n_invoke_before_triggers(         // update -> 检测是否有字段更新
               thd, &update, *update_field_list, *update_value_list, table,
               TRG_EVENT_UPDATE, 0, false, &is_row_changed)) {
         error = 1;
@@ -894,14 +894,13 @@ bool Sql_cmd_update::update_single_table(THD *thd) {
             call then it should be included in the count of dup_key_found
             and error should be set to 0 (only if these errors are ignored).
           */
-          error = table->file->ha_bulk_update_row(
+          error = table->file->ha_bulk_update_row(          // TODO 2023-06-09：?? 多条更新 ？？
               table->record[1], table->record[0], &dup_key_found);
           limit += dup_key_found;
           updated_rows -= dup_key_found;
         } else {
-          /* Non-batched update */
-          error =
-              table->file->ha_update_row(table->record[1], table->record[0]);
+          /* 非批量更新；Non-batched update */
+          error = table->file->ha_update_row(table->record[1], table->record[0]);   // => Update
         }
         if (error == 0)
           updated_rows++;
@@ -1609,7 +1608,7 @@ bool Sql_cmd_update::prepare_inner(THD *thd) {
 
 bool Sql_cmd_update::execute_inner(THD *thd) {
   return multitable ? Sql_cmd_dml::execute_inner(thd)
-                    : update_single_table(thd);
+                    : update_single_table(thd);                             // multitable = false，=>>
 }
 
 /*

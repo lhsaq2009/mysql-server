@@ -420,7 +420,7 @@ bool TableScanIterator::Init() {
 
 int TableScanIterator::Read() {
   int tmp;
-  while ((tmp = table()->file->ha_rnd_next(m_record))) {
+  while ((tmp = table()->file->ha_rnd_next(m_record))) {      // =>>
     /*
       ha_rnd_next can return RECORD_DELETED for MyISAM when one thread is
       reading and another deleting without locks.

@@ -424,8 +424,8 @@ enum row_sel_direction {
 
 /** Match mode for the MySQL interface */
 enum row_sel_match_mode {
-  ROW_SEL_EXACT = 1,   /*!< search using a complete key value */
-  ROW_SEL_EXACT_PREFIX /*!< search using a key prefix which
+  ROW_SEL_EXACT = 1,   /*!< 使用完整的键值进行搜索；search using a complete key value */
+  ROW_SEL_EXACT_PREFIX /*!< 使用键前缀进行搜索 必须匹配行；search using a key prefix which
                        must match rows: the prefix may
                        contain an incomplete field (the last
                        field in prefix may be just a prefix

@@ -325,7 +325,7 @@ void row_upd_rec_sys_fields_in_recovery(
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Sets the trx id or roll ptr field of a clustered index entry. */
+/** 设置「聚集索引」条目的 trx_id 或 roll_ptr 字段；Sets the trx id or roll ptr field of a clustered index entry. */
 void row_upd_index_entry_sys_field(
     dtuple_t *entry,     /*!< in/out: index entry, where the memory
                          buffers for sys fields are already allocated:
@@ -348,14 +348,14 @@ void row_upd_index_entry_sys_field(
 
   if (type == DATA_TRX_ID) {
     ut_ad(val > 0);
-    trx_write_trx_id(field, val);
+    trx_write_trx_id(field, val);                     // 6 bytes
   } else {
     ut_ad(type == DATA_ROLL_PTR);
-    trx_write_roll_ptr(field, val);
+    trx_write_roll_ptr(field, val);               // 7 bytes
   }
 }
 
-/** Returns TRUE if row update changes size of some field in index or if some
+/** 如果行更新更改索引中某些字段的大小，或 要更新的某个字段存储在外部 rec 或 update 中，则返回 TRUE；Returns TRUE if row update changes size of some field in index or if some
  field to be updated is stored externally in rec or update.
  @return true if the update changes the size of some field in index or
  the field is external in rec or update */
@@ -473,7 +473,7 @@ bool row_upd_changes_disowned_external(
  usually invoked on a clustered index. The only use case for a
  secondary index is row_ins_sec_index_entry_by_modify() or its
  counterpart in ibuf_insert_to_index_page(). */
-void row_upd_rec_in_place(
+void row_upd_rec_in_place(        // 更新数据
     rec_t *rec,                /*!< in/out: record where replaced */
     const dict_index_t *index, /*!< in: the index the record belongs to */
     const ulint *offsets,      /*!< in: array returned by rec_get_offsets() */
@@ -503,7 +503,7 @@ void row_upd_rec_in_place(
 
   n_fields = upd_get_n_fields(update);
 
-  for (i = 0; i < n_fields; i++) {
+  for (i = 0; i < n_fields; i++) {            // 依次更新变更的字段
     upd_field = upd_get_nth_field(update, i);
 
     /* No need to update virtual columns for non-virtual index */
@@ -2777,7 +2777,7 @@ static void row_upd_check_autoinc_counter(const upd_node_t *node, mtr_t *mtr) {
   }
 }
 
-/** Updates a clustered index record of a row when the ordering fields do
+/** 当排序字段没有改变时,更新一行的聚类索引记录；Updates a clustered index record of a row when the ordering fields do
  not change.
  @return DB_SUCCESS if operation successfully completed, else error
  code or DB_LOCK_WAIT */
@@ -2825,12 +2825,12 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_clust_rec(
   the page; we do not check locks because we assume the x-lock on the
   record to update */
 
-  if (node->cmpl_info & UPD_NODE_NO_SIZE_CHANGE) {
+  if (node->cmpl_info & UPD_NODE_NO_SIZE_CHANGE) {        // 更新中不会更改记录字段大小
     err = btr_cur_update_in_place(flags | BTR_NO_LOCKING_FLAG, btr_cur, offsets,
                                   node->update, node->cmpl_info, thr,
-                                  thr_get_trx(thr)->id, mtr);
+                                  thr_get_trx(thr)->id, mtr);   // 更新 b-tree
   } else {
-    err = btr_cur_optimistic_update(
+    err = btr_cur_optimistic_update(                      // 处理后，依旧调用 btr_cur_update_in_place(..)
         flags | BTR_NO_LOCKING_FLAG, btr_cur, &offsets, offsets_heap,
         node->update, node->cmpl_info, thr, thr_get_trx(thr)->id, mtr);
   }
@@ -2839,7 +2839,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t row_upd_clust_rec(
     goto success;
   }
 
-  mtr->commit();
+  mtr->commit();          // 提交 mtr
 
   if (buf_LRU_buf_pool_running_out()) {
     err = DB_LOCK_TABLE_FULL;
@@ -3000,7 +3000,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   /* We have to restore the cursor to its position */
 
-  mtr_start(&mtr);
+  mtr_start(&mtr);        // 开启 mtr，MySQL 的 MTR 机制
 
   /* Disable REDO logging as lifetime of temp-tables is limited to
   server or connection lifetime and so REDO information is not needed
@@ -3087,7 +3087,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     row_upd_eval_new_vals(node->update);
   }
 
-  if (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE) {
+  if (node->cmpl_info & UPD_NODE_NO_ORD_CHANGE) {                                   // 若不涉及二级索引更新
     err = row_upd_clust_rec(flags, node, index, offsets, &heap, thr, &mtr);
     goto exit_func;
   }
@@ -3095,7 +3095,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
   row_upd_store_row(trx, node, trx->mysql_thd,
                     thr->prebuilt ? thr->prebuilt->m_mysql_table : NULL);
 
-  if (row_upd_changes_ord_field_binary(index, node->update, thr, node->row,
+  if (row_upd_changes_ord_field_binary(index, node->update, thr, node->row,         // 若更新的主键值，则通过删除标记 和 插入来执行更新
                                        node->ext, nullptr)) {
     /* Update causes an ordering field (ordering fields within
     the B-tree) of the clustered index record to change: perform
@@ -3108,8 +3108,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     choosing records to update. MySQL solves now the problem
     externally! */
 
-    err =
-        row_upd_clust_rec_by_insert(flags, node, index, thr, referenced, &mtr);
+    err = row_upd_clust_rec_by_insert(flags, node, index, thr, referenced, &mtr);
 
     if (err != DB_SUCCESS) {
       goto exit_func;
@@ -3117,7 +3116,7 @@ static MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
     node->state = UPD_NODE_UPDATE_ALL_SEC;
   } else {
-    err = row_upd_clust_rec(flags, node, index, offsets, &heap, thr, &mtr);
+    err = row_upd_clust_rec(flags, node, index, offsets, &heap, thr, &mtr);     // =>>
 
     if (err != DB_SUCCESS) {
       goto exit_func;
@@ -3140,7 +3139,7 @@ exit_func:
  record, and the position of the cursor is stored in the cursor.
  @return DB_SUCCESS if operation successfully completed, else error
  code or DB_LOCK_WAIT */
-static dberr_t row_upd(upd_node_t *node, /*!< in: row update node */
+static dberr_t row_upd(upd_node_t *node, /*!< in: row update node */              //
                        que_thr_t *thr)   /*!< in: query thread */
 {
   dberr_t err = DB_SUCCESS;
@@ -3227,10 +3226,10 @@ static dberr_t row_upd(upd_node_t *node, /*!< in: row update node */
   return err;
 }
 
-/** Updates a row in a table. This is a high-level function used in SQL
+/** 更新表中的行；Updates a row in a table. This is a high-level function used in SQL
  execution graphs.
  @return query thread to run next or NULL */
-que_thr_t *row_upd_step(que_thr_t *thr) /*!< in: query thread */
+que_thr_t *row_upd_step(que_thr_t *thr) /*!< in: query thread */      //
 {
   upd_node_t *node;
   sel_node_t *sel_node;
@@ -3245,7 +3244,7 @@ que_thr_t *row_upd_step(que_thr_t *thr) /*!< in: query thread */
 
   trx_start_if_not_started_xa(trx, true);
 
-  node = static_cast<upd_node_t *>(thr->run_node);
+  node = static_cast<upd_node_t *>(thr->run_node);      // TODO 2023-06-09：没懂这个 node 是什么
 
   sel_node = node->select;
 
@@ -3303,9 +3302,9 @@ que_thr_t *row_upd_step(que_thr_t *thr) /*!< in: query thread */
     return thr;
   }
 
-  /* DO THE CHECKS OF THE CONSISTENCY CONSTRAINTS HERE */
+  /* 在此处检查一致性约束；DO THE CHECKS OF THE CONSISTENCY CONSTRAINTS HERE */
 
-  err = row_upd(node, thr);
+  err = row_upd(node, thr);                           // =>>
 
 error_handling:
   trx->error_state = err;

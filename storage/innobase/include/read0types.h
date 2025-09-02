@@ -44,7 +44,7 @@ class MVCC;
 /** Read view lists the trx ids of those transactions for which a consistent
 read should not see the modifications to the database. */
 
-class ReadView {
+class ReadView {    /* 视图，某一时刻的一个事务快照 */
   /** This is similar to a std::vector but it is not a drop
   in replacement. It is specific to ReadView. */
   class ids_t {
@@ -161,16 +161,18 @@ class ReadView {
   @param[in]	id	transaction id to check against the view
   @param[in]	name	table name
   @return whether the view sees the modifications of id. */
-  bool changes_visible(trx_id_t id, const table_name_t &name) const
+  bool changes_visible(trx_id_t id, const table_name_t &name) const     // MVCC 真正判断是否可见
       MY_ATTRIBUTE((warn_unused_result)) {
     ut_ad(id > 0);
 
+    // 如果 TRX_ID 小于 Read View 中最小的，则这条记录是可以看到。说明这条记录是在 select 这个事务开始之前就结束的
     if (id < m_up_limit_id || id == m_creator_trx_id) {
       return (true);
     }
 
     check_trx_id_sanity(id, name);
 
+    // 如果比 Read View 中最大的还要大，则说明这条记录是在事务开始之后进行修改的，所以此条记录不应查看到
     if (id >= m_low_limit_id) {
       return (false);
 
@@ -180,6 +182,7 @@ class ReadView {
 
     const ids_t::value_type *p = m_ids.data();
 
+    // 判断是否在 Read View 中，如果在说明在创建 Read View 时，此条记录还处于活跃状态则不应该查询到，否则说明创建 Read View 是此条记录已经是不活跃状态则可以查询到
     return (!std::binary_search(p, p + m_ids.size(), id));
   }
 
@@ -282,20 +285,20 @@ class ReadView {
  private:
   /** The read should not see any transaction with trx id >= this
   value. In other words, this is the "high water mark". */
-  trx_id_t m_low_limit_id;
+  trx_id_t m_low_limit_id;    /** 高水位，≥ 这个 ID 的事务均不可见 */
 
   /** The read should see all trx ids which are strictly
   smaller (<) than this value.  In other words, this is the
   low water mark". */
-  trx_id_t m_up_limit_id;
+  trx_id_t m_up_limit_id;     /** 低水位：小于这个 ID 的事务均可见 */
 
   /** trx id of creating transaction, set to TRX_ID_MAX for free
   views. */
-  trx_id_t m_creator_trx_id;
+  trx_id_t m_creator_trx_id;  /** 创建该 Read View 的事务 ID*/
 
   /** Set of RW transactions that was active when this snapshot
   was taken */
-  ids_t m_ids;
+  ids_t m_ids;                 /** 创建视图时的活跃事务 ID 列表 */
 
   /** The view does not need to see the undo logs for transactions
   whose transaction number is strictly smaller (<) than this value:
@@ -311,7 +314,7 @@ class ReadView {
 #endif /* UNIV_DEBUG */
 
   /** AC-NL-RO transaction view that has been "closed". */
-  bool m_closed;
+  bool m_closed;               /** 标记视图是否被关闭 */
 
   typedef UT_LIST_NODE_T(ReadView) node_t;
 

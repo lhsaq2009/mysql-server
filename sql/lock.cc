@@ -303,7 +303,7 @@ static void reset_lock_data_and_free(MYSQL_LOCK **mysql_lock) {
 
    @param thd          The current thread.
    @param tables       An array of pointers to the tables to lock.
-   @param count        The number of tables to lock.
+   @param count        ✅ The number of tables to lock.
    @param flags        Options:
                  MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY Ignore SET GLOBAL READ_ONLY
                  MYSQL_LOCK_IGNORE_TIMEOUT          Use maximum timeout value.
@@ -324,7 +324,7 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, size_t count,
 
   if (lock_tables_check(thd, tables, count, flags)) return NULL;
 
-  if (!(sql_lock = get_lock_data(thd, tables, count, GET_LOCK_STORE_LOCKS)))
+  if (!(sql_lock = get_lock_data(thd, tables, count, GET_LOCK_STORE_LOCKS)))    //
     return NULL;
 
   if (!(thd->state_flags & Open_tables_state::SYSTEM_TABLES))
@@ -332,8 +332,8 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, size_t count,
 
   DBUG_PRINT("info", ("thd->proc_info %s", thd->proc_info));
   if (sql_lock->table_count &&
-      lock_external(thd, sql_lock->table, sql_lock->table_count)) {
-    /* Clear the lock type of all lock data to avoid reusage. */
+      lock_external(thd, sql_lock->table, sql_lock->table_count)) {   // =>>
+    /* 清除所有锁定数据的锁定类型以避免重复使用；Clear the lock type of all lock data to avoid reusage. */
     reset_lock_data_and_free(&sql_lock);
     goto end;
   }
@@ -341,15 +341,15 @@ MYSQL_LOCK *mysql_lock_tables(THD *thd, TABLE **tables, size_t count,
   /* Copy the lock data array. thr_multi_lock() reorders its contents. */
   memcpy(sql_lock->locks + sql_lock->lock_count, sql_lock->locks,
          sql_lock->lock_count * sizeof(*sql_lock->locks));
-  /* Lock on the copied half of the lock data array. */
-  rc = thr_lock_errno_to_mysql[(int)thr_multi_lock(
+  /* 锁定 锁定数据数组 的复制的一半；Lock on the copied half of the lock data array. */
+  rc = thr_lock_errno_to_mysql[(int)thr_multi_lock(           // =>> LOCK TABLES myISAM WRITE ;
       sql_lock->locks + sql_lock->lock_count, sql_lock->lock_count,
       &thd->lock_info, timeout)];
 
   DBUG_EXECUTE_IF("mysql_lock_tables_kill_query",
                   thd->killed = THD::KILL_QUERY;);
 
-  if (rc) {
+  if (rc) {                                                   // 存在加表锁成功
     if (sql_lock->table_count)
       (void)unlock_external(thd, sql_lock->table, sql_lock->table_count);
     reset_lock_data_and_free(&sql_lock);
@@ -378,15 +378,15 @@ static int lock_external(THD *thd, TABLE **tables, uint count) {
   DBUG_TRACE;
 
   DBUG_PRINT("info", ("count %d", count));
-  for (i = 1; i <= count; i++, tables++) {
+  for (i = 1; i <= count; i++, tables++) {                                // 381
     DBUG_ASSERT((*tables)->reginfo.lock_type >= TL_READ);
     lock_type = F_WRLCK; /* Lock exclusive */
     if ((*tables)->db_stat & HA_READ_ONLY ||
         ((*tables)->reginfo.lock_type >= TL_READ &&
          (*tables)->reginfo.lock_type <= TL_READ_NO_INSERT))
       lock_type = F_RDLCK;
-
-    if ((error = (*tables)->file->ha_external_lock(thd, lock_type))) {
+    // TL_WRITE => lock_type => 3
+    if ((error = (*tables)->file->ha_external_lock(thd, lock_type))) {    // =>>
       print_lock_error(error, (*tables)->file->table_type());
       while (--i) {
         tables--;
@@ -405,7 +405,7 @@ static int lock_external(THD *thd, TABLE **tables, uint count) {
 void mysql_unlock_tables(THD *thd, MYSQL_LOCK *sql_lock) {
   DBUG_TRACE;
   if (sql_lock->lock_count)
-    thr_multi_unlock(sql_lock->locks, sql_lock->lock_count);
+    thr_multi_unlock(sql_lock->locks, sql_lock->lock_count);    // =>> UNLOCK TABLES ;
   if (sql_lock->table_count)
     (void)unlock_external(thd, sql_lock->table, sql_lock->table_count);
   my_free(sql_lock);
@@ -622,8 +622,8 @@ static int unlock_external(THD *thd, TABLE **table, uint count) {
 }
 
 /**
+  从「表结构」中获取「锁结构」并初始化「锁」；
   Get lock structures from table structs and initialize locks.
-
   @param thd                Thread handler
   @param table_ptr          Pointer to tables that should be locks
   @param count              Number of tables
@@ -635,7 +635,7 @@ static int unlock_external(THD *thd, TABLE **table, uint count) {
 static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, size_t count,
                                  uint flags) {
   uint i, tables, lock_count;
-  MYSQL_LOCK *sql_lock;
+  MYSQL_LOCK *sql_lock;       // ???
   THR_LOCK_DATA **locks, **locks_buf, **locks_start;
   TABLE **to, **table_buf;
   DBUG_TRACE;
@@ -643,11 +643,11 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, size_t count,
   DBUG_ASSERT((flags == GET_LOCK_UNLOCK) || (flags == GET_LOCK_STORE_LOCKS));
   DBUG_PRINT("info", ("count %zu", count));
 
-  for (i = tables = lock_count = 0; i < count; i++) {
+  for (i = tables = lock_count = 0; i < count; i++) {             // count：几个表可能加锁
     TABLE *t = table_ptr[i];
 
     if (t->s->tmp_table != NON_TRANSACTIONAL_TMP_TABLE) {
-      tables += t->file->lock_count();
+      tables += t->file->lock_count();                            // InnoDB Return 0
       lock_count++;
     }
   }
@@ -670,7 +670,7 @@ static MYSQL_LOCK *get_lock_data(THD *thd, TABLE **table_ptr, size_t count,
 
   for (i = 0; i < count; i++) {
     TABLE *table;
-    enum thr_lock_type lock_type;
+    enum thr_lock_type lock_type;                         // enum thr_lock_type {          // 表锁类型；TL 前缀：Tabel Level
     THR_LOCK_DATA **org_locks = locks;
 
     if ((table = table_ptr[i])->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)

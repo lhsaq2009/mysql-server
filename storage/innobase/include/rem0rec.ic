@@ -194,9 +194,9 @@ rec_t *rec_get_next_ptr(rec_t *rec, /*!< in: physical record */
   return (const_cast<rec_t *>(rec_get_next_ptr_const(rec, comp)));
 }
 
-/** The following function is used to get the offset of the next chained record
- on the same page.
- @return the page offset of the next chained record, or 0 if none */
+/** 以下函数用于获取同一页面上下一个链接记录的偏移量
+    The following function is used to get the offset of the next chained record on the same page.
+ @return 下一条链接记录的页偏移量，如果没有，则为 0；the page offset of the next chained record, or 0 if none */
 UNIV_INLINE
 ulint rec_get_next_offs(const rec_t *rec, /*!< in: physical record */
                         ulint comp) /*!< in: nonzero=compact page format */
@@ -420,8 +420,8 @@ void rec_set_info_and_status_bits(rec_t *rec, /*!< in/out: physical record */
 UNIV_INLINE
 ulint rec_get_deleted_flag(const rec_t *rec, /*!< in: physical record */
                            ulint comp) /*!< in: nonzero=compact page format */
-{
-  if (comp) {
+{ // comp 即 'compact'，记录的格式
+  if (comp) {  // 往前移动 5 个字节，然后读一个字节，然后与 32 = 0010 0000，取 第三个 Bit 位，即 deleted_flag
     return (rec_get_bit_field_1(rec, REC_NEW_INFO_BITS, REC_INFO_DELETED_FLAG,
                                 REC_INFO_BITS_SHIFT));
   } else {
@@ -659,8 +659,8 @@ const byte *rec_offs_any_null_extern(
 
   return (NULL);
 }
-
-/** Returns nonzero if the extern bit is set in nth field of rec.
+// TODO 2023-06-02：存在数据外置？？
+/** 如果在 rec 的第 n 个字段中设置了外部位，则返回非零值；Returns nonzero if the extern bit is set in nth field of rec.
  @return nonzero if externally stored */
 UNIV_INLINE
 ulint rec_offs_nth_extern(
@@ -1222,7 +1222,7 @@ const byte *rec_get_nth_field_old_instant(const rec_t *rec, uint16_t n,
   return (field);
 }
 
-/** Gets the value of the specified field in the record.
+/** 获取记录中指定字段的值。 仅当记录可能来自聚集索引时才使用此方法，该索引具有一些即时添加列；Gets the value of the specified field in the record.
 This is only used when there is possibility that the record comes from the
 clustered index, which has some instantly add columns
 @param[in]	rec	record

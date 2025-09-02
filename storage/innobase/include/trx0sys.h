@@ -57,7 +57,7 @@ typedef UT_LIST_BASE_NODE_T(trx_t) trx_ut_list_t;
 class MVCC;
 class ReadView;
 
-/** The transaction system */
+/** The transaction system；事务控制器 */
 extern trx_sys_t *trx_sys;
 
 /** Checks if a page address is the trx sys header page.
@@ -420,14 +420,11 @@ class Space_Ids : public std::vector<space_id_t, ut_allocator<space_id_t>> {
 };
 
 #ifndef UNIV_HOTBACKUP
-/** The transaction system central memory data structure. */
-struct trx_sys_t {
-  TrxSysMutex mutex; /*!< mutex protecting most fields in
-                     this structure except when noted
-                     otherwise */
+/** The transaction system central memory data structure.  */
+struct trx_sys_t {  // 事务控制器
+  TrxSysMutex mutex; /*!< mutex protecting most fields in this structure except when noted otherwise */
 
-  MVCC *mvcc;                   /*!< Multi version concurrency control
-                                manager */
+  MVCC *mvcc;                   /*!< Multi version concurrency control manager */
   volatile trx_id_t max_trx_id; /*!< The smallest number not yet
                                 assigned as a transaction id or
                                 transaction number. This is declared
@@ -435,14 +432,11 @@ struct trx_sys_t {
                                 without holding any mutex during
                                 AC-NL-RO view creation. */
   std::atomic<trx_id_t> min_active_id;
-  /*!< Minimal transaction id which is
-  still in active state. */
+  /*!< Minimal transaction id which is still in active state. */
   trx_ut_list_t serialisation_list;
-  /*!< Ordered on trx_t::no of all the
-  currenrtly active RW transactions */
+  /*!< Ordered on trx_t::no of all the currenrtly active RW transactions */
 #ifdef UNIV_DEBUG
-  trx_id_t rw_max_trx_no; /*!< Max trx number of read-write
-                          transactions added for purge. */
+  trx_id_t rw_max_trx_no; /*!< Max trx number of read-write transactions added for purge. */
 #endif                    /* UNIV_DEBUG */
 
   char pad1[64];             /*!< To avoid false sharing */
@@ -473,8 +467,7 @@ struct trx_sys_t {
 
   char pad3[64]; /*!< To avoid false sharing */
 
-  Rsegs rsegs; /*!< Vector of pointers to rollback
-               segments. These rsegs are iterated
+  Rsegs rsegs; /*!< Vector of pointers to rollback segments. These rsegs are iterated
                and added to the end under a read
                lock. They are deleted under a write
                lock while the vector is adjusted.

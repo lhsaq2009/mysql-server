@@ -866,7 +866,7 @@ namespace dd {
 class Spatial_reference_system;
 }
 
-/** Data structure for an index.  Most fields will be
+/** 索引的数据结构；Data structure for an index.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_index_create(). */
 struct dict_index_t {
   space_index_t id;       /*!< id of the index */
@@ -950,7 +950,7 @@ struct dict_index_t {
 #ifdef UNIV_DEBUG
   uint32_t magic_n; /*!< magic number */
 /** Value of dict_index_t::magic_n */
-#define DICT_INDEX_MAGIC_N 76789786
+#define DICT_INDEX_MAGIC_N 76789786           // 0x 0493B81A
 #endif
   dict_field_t *fields; /*!< array of field descriptions */
 #ifndef UNIV_HOTBACKUP
@@ -1520,7 +1520,7 @@ temp table */
 typedef std::vector<row_prebuilt_t *> temp_prebuilt_vec;
 #endif /* !UNIV_HOTBACKUP */
 
-/** Data structure for a database table.  Most fields will be
+/** 数据库表的数据结构；Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t {
   /** Check if the table is compressed.
@@ -1671,7 +1671,7 @@ struct dict_table_t {
   or ONLINE_INDEX_ABORTED_DROPPED. */
   unsigned drop_aborted : 1;
 
-  /** Array of column descriptions. */
+  /** 列描述的数组；Array of column descriptions. */
   dict_col_t *cols;
 
   /** Array of virtual column descriptions. */

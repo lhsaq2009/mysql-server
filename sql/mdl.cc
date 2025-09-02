@@ -26,6 +26,7 @@
 #include <algorithm>
 #include <atomic>
 #include <functional>
+#include <jmorecfg.h>
 
 #include "lf.h"
 #include "m_ctype.h"
@@ -52,6 +53,7 @@
 #include "prealloced_array.h"
 #include "sql/debug_sync.h"
 #include "sql/thr_malloc.h"
+#include "field.h"
 
 extern MYSQL_PLUGIN_IMPORT CHARSET_INFO *system_charset_info;
 
@@ -685,10 +687,10 @@ class MDL_lock {
     @note We split all lock types for each of MDL namespaces
           in two sets:
 
-          A) "unobtrusive" lock types
-            1) Each type from this set should be compatible with all other
-               types from the set (including itself).
-            2) These types should be common for DML operations
+          A) “不显眼”的锁类型； "unobtrusive" lock types
+            1) 此集合中的每个类型都应与集合中的所有其他类型（包括其自身）兼容。
+                Each type from this set should be compatible with all other types from the set (including itself).
+            2) 这些类型对于 DML 操作应该是通用的；These types should be common for DML operations
 
           Our goal is to optimize acquisition and release of locks of this
           type by avoiding complex checks and manipulations on m_waiting/
@@ -1654,7 +1656,7 @@ MDL_ticket *MDL_ticket::create(MDL_context *ctx_arg, enum_mdl_type type_arg
                                ,
                                enum_mdl_duration duration_arg
 #endif
-) {
+) {   // type_arg = MDL_INTENTION_EXCLUSIVE
   return new (std::nothrow) MDL_ticket(ctx_arg, type_arg
 #ifndef DBUG_OFF
                                        ,
@@ -2364,8 +2366,8 @@ const MDL_lock::MDL_lock_strategy MDL_lock::m_object_lock_strategy = {
     &MDL_lock::object_lock_needs_connection_check};
 
 /**
-  Check if request for the metadata lock can be satisfied given its
-  current state.
+  检查是否可以在给定其当前状态的情况下满足对元数据锁的请求
+  Check if request for the metadata lock can be satisfied given its current state.
 
   @param  type_arg             The requested lock type.
   @param  requestor_ctx        The MDL context of the requestor.
@@ -2775,7 +2777,7 @@ void MDL_context::materialize_fast_path_locks() {
 }
 
 /**
-  Auxiliary method for acquiring lock without waiting.
+  无需等待即可获取锁的常用方法；Auxiliary method for acquiring lock without waiting.
 
   @param [in,out] mdl_request Lock request object for lock to be acquired
   @param [out] out_ticket     Ticket for the request in case when lock
@@ -2848,7 +2850,7 @@ bool MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
     might happen during lock release).
   */
   if (fix_pins()) return true;
-
+  // mdl_request->key.m_ptr = "\U00000003test\0t3"...；mdl_request->type = "MDL_SHARED_NO_READ_WRITE"
   if (!(ticket = MDL_ticket::create(this, mdl_request->type
 #ifndef DBUG_OFF
                                     ,
@@ -2857,7 +2859,7 @@ bool MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
                                     )))
     return true;
 
-  /*
+  /* 获取“快速路径”的增量 或 指示这是对关键部分之外的 “突兀” 类型锁的请求
     Get increment for "fast path" or indication that this is
     request for "obtrusive" type of lock outside of critical section.
   */
@@ -2869,7 +2871,7 @@ bool MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
     If this context has open HANDLERs we have to take "slow path"
     as well for MDL_object_lock::notify_conflicting_locks() to work
     properly.
-  */
+  */   // 不显眼的锁定增量
   force_slow = !unobtrusive_lock_increment || m_needs_thr_lock_abort;
 
   /*
@@ -2928,7 +2930,7 @@ retry:
   */
   DBUG_ASSERT(mdl_locks.is_lock_object_singleton(key) == !pinned);
 
-  if (!force_slow) {
+  if (!force_slow) {      // TODO 2023-06-01：???
     /*
       "Fast path".
 
@@ -3022,7 +3024,7 @@ retry:
     mdl_request->ticket = ticket;
 
     mysql_mdl_set_status(ticket->m_psi, MDL_ticket::GRANTED);
-    return false;
+    return false;     // 正常获取到 MDL 退出 => Yes
   }
 
 slow_path:
@@ -3108,7 +3110,7 @@ slow_path:
   if (first_use && pinned) mdl_locks.lock_object_used();
 
   ticket->m_lock = lock;
-
+  // MDL_SHARED_NO_READ_WRITE ( X )
   if (lock->can_grant_lock(mdl_request->type, this)) {
     lock->m_granted.add_ticket(ticket);
 
@@ -3330,14 +3332,13 @@ void MDL_lock::object_lock_notify_conflicting_locks(MDL_context *ctx,
 }
 
 /**
+  获取一个锁，并在需要时等待冲突的锁消失；
   Acquire one lock with waiting for conflicting locks to go away if needed.
-
   @param [in,out] mdl_request Lock request object for lock to be acquired
 
   @param lock_wait_timeout Seconds to wait before timeout.
 
-  @retval  false   Success. MDL_request::ticket points to the ticket
-                   for the lock.
+  @retval  false   Success. MDL_request::ticket points to the ticket for the lock.
   @retval  true    Failure (Out of resources or waiting is aborted),
 */
 
@@ -3377,10 +3378,66 @@ bool MDL_context::acquire_lock(MDL_request *mdl_request,
 
   if (mdl_request->ticket) {
     /*
+      我们已经设法在没有等待的情况下获得了锁。MDL_lock、MDL_context 和 MDL_request 都进行了相应的更新，因此我们可以简单地返回成功
       We have managed to acquire lock without waiting.
-      MDL_lock, MDL_context and MDL_request were updated
-      accordingly, so we can simply return success.
+      MDL_lock, MDL_context and MDL_request were updated accordingly, so we can simply return success.
     */
+    auto m_type = "()";
+    switch (mdl_request->ticket->m_type) {
+      case MDL_INTENTION_EXCLUSIVE: m_type = "MDL_INTENTION_EXCLUSIVE(0)";break;
+      case MDL_SHARED: m_type = "MDL_SHARED(1)"; break;
+      case MDL_SHARED_HIGH_PRIO: m_type = "MDL_SHARED_HIGH_PRIO(2)"; break;
+      case MDL_SHARED_READ: m_type = "MDL_SHARED_READ(3)"; break;
+      case MDL_SHARED_WRITE: m_type = "MDL_SHARED_WRITE(4)"; break;
+      case MDL_SHARED_WRITE_LOW_PRIO: m_type = "MDL_SHARED_WRITE_LOW_PRIO(5)"; break;
+      case MDL_SHARED_UPGRADABLE: m_type = "MDL_SHARED_UPGRADABLE(6)"; break;
+      case MDL_SHARED_READ_ONLY: m_type = "MDL_SHARED_READ_ONLY(7)"; break;
+      case MDL_SHARED_NO_WRITE: m_type = "MDL_SHARED_NO_WRITE(8)"; break;
+      case MDL_SHARED_NO_READ_WRITE: m_type = "MDL_SHARED_NO_READ_WRITE(9)"; break;
+      case MDL_EXCLUSIVE: m_type = "MDL_EXCLUSIVE(10)"; break;
+      case MDL_TYPE_END: m_type = "MDL_TYPE_END(11)"; break;
+      default:DBUG_ASSERT(false);
+    }
+
+    auto m_duration = "()";
+    switch (mdl_request->ticket->m_duration) {
+      case MDL_STATEMENT:m_duration = "MDL_STATEMENT";break;
+      case MDL_TRANSACTION:m_duration = "MDL_TRANSACTION";break;
+      case MDL_EXPLICIT:m_duration = "MDL_EXPLICIT";break;
+      case MDL_DURATION_END:m_duration = "MDL_DURATION_END";break;
+      default:DBUG_ASSERT(false);
+    }
+
+    auto namespace_v = "()";
+    switch (mdl_request->ticket->m_lock->key.mdl_namespace()) {
+      case MDL_key::GLOBAL:namespace_v = "GLOBAL";break;
+      case MDL_key::TABLESPACE:namespace_v = "TABLESPACE";break;
+      case MDL_key::SCHEMA:namespace_v = "SCHEMA";break;
+      case MDL_key::TABLE:namespace_v = "TABLE";break;
+      case MDL_key::FUNCTION:namespace_v = "FUNCTION";break;
+      case MDL_key::PROCEDURE:namespace_v = "PROCEDURE";break;
+      case MDL_key::TRIGGER:namespace_v = "TRIGGER";break;
+      case MDL_key::EVENT:namespace_v = "EVENT";break;
+      case MDL_key::COMMIT:namespace_v = "COMMIT";break;
+      case MDL_key::USER_LEVEL_LOCK:namespace_v = "USER_LEVEL_LOCK";break;
+      case MDL_key::LOCKING_SERVICE:namespace_v = "LOCKING_SERVICE";break;
+      case MDL_key::SRID:namespace_v = "SRID";break;
+      case MDL_key::ACL_CACHE:namespace_v = "ACL_CACHE";break;
+      case MDL_key::COLUMN_STATISTICS:namespace_v = "COLUMN_STATISTICS";break;
+      case MDL_key::BACKUP_LOCK:namespace_v = "BACKUP_LOCK";break;
+      case MDL_key::RESOURCE_GROUPS:namespace_v = "RESOURCE_GROUPS";break;
+      case MDL_key::FOREIGN_KEY:namespace_v = "FOREIGN_KEY";break;
+      case MDL_key::CHECK_CONSTRAINT:namespace_v = "CHECK_CONSTRAINT";break;
+      case MDL_key::NAMESPACE_END:namespace_v = "NAMESPACE_END";break;
+      default:DBUG_ASSERT(false);
+    }
+
+    DBUG_PRINT("haisen", ("✅ mdl = { name = %s, db = %s, namespace = %s , m_type = %s, m_duration = %s }",
+            mdl_request->ticket->m_lock->key.name(),
+            mdl_request->ticket->m_lock->key.db_name(),
+            namespace_v, m_type, m_duration
+    ));
+
     return false;
   }
 
@@ -3593,11 +3650,13 @@ bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
 
   std::sort(sort_buf.begin(), sort_buf.end(), MDL_request_cmp());
 
+  DBUG_PRINT("haisen", ("✅ mdl begin -------------- "));
   size_t num_acquired = 0;
   for (p_req = sort_buf.begin(); p_req != sort_buf.end(); p_req++) {
-    if (acquire_lock(*p_req, lock_wait_timeout)) goto err;
+    if (acquire_lock(*p_req, lock_wait_timeout)) goto err;      // =>> mdl
     ++num_acquired;
   }
+  DBUG_PRINT("haisen", ("✅ mdl end   -------------- \n"));
   return false;
 
 err:

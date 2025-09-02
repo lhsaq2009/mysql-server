@@ -482,7 +482,7 @@ void mtr_t::commit() {
       (m_impl.m_modifications && m_impl.m_log_mode == MTR_LOG_NO_REDO)) {
     ut_ad(!srv_read_only_mode || m_impl.m_log_mode == MTR_LOG_NO_REDO);
 
-    cmd.execute();
+    cmd.execute();                        //
   } else {
     cmd.release_all();
     cmd.release_resources();
@@ -613,7 +613,7 @@ void mtr_t::Command::release_all() {
 }
 
 /** Add blocks modified in this mini-transaction to the flush list. */
-void mtr_t::Command::add_dirty_blocks_to_flush_list(lsn_t start_lsn,
+void mtr_t::Command::add_dirty_blocks_to_flush_list(lsn_t start_lsn,                  // 脏数据块，准备刷入磁盘
                                                     lsn_t end_lsn) {
   Add_dirty_blocks_to_flush_list add_to_flush(start_lsn, end_lsn,
                                               m_impl->m_flush_observer);

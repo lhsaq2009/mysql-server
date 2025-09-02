@@ -259,7 +259,7 @@ struct MI_INFO {
   DYNAMIC_ARRAY *ft1_to_ft2;            /* used only in ft1->ft2 conversion */
   MEM_ROOT ft_memroot;                  /* used by the parser               */
   MYSQL_FTPARSER_PARAM *ftparser_param; /* share info between init/deinit   */
-  LIST in_use;                          /* Thread using this table          */
+  LIST in_use;                          /* 使用此表的线程；Thread using this table          */
   char *filename;                       /* parameter to open filename       */
   uchar *buff,                          /* Temp area for key                */
       *lastkey, *lastkey2;              /* Last used search key             */

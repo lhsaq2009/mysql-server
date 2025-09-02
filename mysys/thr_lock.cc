@@ -891,18 +891,18 @@ static void sort_locks(THR_LOCK_DATA **data, uint count) {
     }
   }
 }
-
+// ??? 加的什么锁？
 enum enum_thr_lock_result thr_multi_lock(THR_LOCK_DATA **data, uint count,
                                          THR_LOCK_INFO *owner,
                                          ulong lock_wait_timeout) {
   THR_LOCK_DATA **pos, **end;
   DBUG_TRACE;
   DBUG_PRINT("lock", ("data: %p  count: %d", data, count));
-  if (count > 1) sort_locks(data, count);
+  if (count > 1) sort_locks(data, count);                                        // TODO 2023-05-29：验证 -》 若锁多个表，则对表先排序
   /* lock everything */
   for (pos = data, end = data + count; pos < end; pos++) {
     enum enum_thr_lock_result result =
-        thr_lock(*pos, owner, (*pos)->type, lock_wait_timeout);
+        thr_lock(*pos, owner, (*pos)->type, lock_wait_timeout);     // =>> TODO 2023-05-27：Innodb Update 没进来
     if (result != THR_LOCK_SUCCESS) { /* Aborted */
       thr_multi_unlock(data, (uint)(pos - data));
       return result;
@@ -994,7 +994,7 @@ void thr_multi_unlock(THR_LOCK_DATA **data, uint count) {
     fflush(stdout);
 #endif
     if ((*pos)->type != TL_UNLOCK)
-      thr_unlock(*pos);
+      thr_unlock(*pos);         // =>>
     else {
       DBUG_PRINT("lock", ("Free lock: data: %p  thread: 0x%x  lock: %p", *pos,
                           (*pos)->owner->thread_id, (*pos)->lock));

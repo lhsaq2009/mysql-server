@@ -296,7 +296,7 @@ management to ensure correct alignment for doubles etc. */
 /** The 2-logarithm of UNIV_PAGE_SIZE: */
 #define UNIV_PAGE_SIZE_SHIFT srv_page_size_shift
 
-/** The universal page size of the database */
+/** 数据库的通用页面大小；The universal page size of the database */
 #define UNIV_PAGE_SIZE ((ulint)srv_page_size)
 
 /** log2 of smallest compressed page size (1<<10 == 1024 bytes)
@@ -328,7 +328,7 @@ limit both with this same constant. */
 /** Maximum page size InnoDB currently supports. */
 constexpr size_t UNIV_PAGE_SIZE_MAX = (1 << UNIV_PAGE_SIZE_SHIFT_MAX);
 /** Default page size for InnoDB tablespaces. */
-#define UNIV_PAGE_SIZE_DEF (1 << UNIV_PAGE_SIZE_SHIFT_DEF)
+#define UNIV_PAGE_SIZE_DEF (1 << UNIV_PAGE_SIZE_SHIFT_DEF)      // UNIV_PAGE_SIZE_SHIFT_DEF = 14，16KB
 /** Original 16k page size for InnoDB tablespaces. */
 #define UNIV_PAGE_SIZE_ORIG (1 << UNIV_PAGE_SIZE_SHIFT_ORIG)
 
@@ -574,7 +574,7 @@ it is read or written. */
 #define UNIV_PREFETCH_RW(addr) ((void)0)
 #endif
 
-/* Tell the compiler that cond is likely to hold */
+/* 告诉编译器 cond 可能成立；Tell the compiler that cond is likely to hold */
 #define UNIV_LIKELY(cond) UNIV_EXPECT(cond, TRUE)
 /* Tell the compiler that cond is unlikely to hold */
 #define UNIV_UNLIKELY(cond) UNIV_EXPECT(cond, FALSE)

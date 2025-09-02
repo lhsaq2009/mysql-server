@@ -153,7 +153,7 @@ class Storage_adapter {
   void core_update(const dd::Tablespace *new_tsp);
 
   /**
-    Get a dictionary object from persistent storage.
+    从持久存储中获取字典对象；Get a dictionary object from persistent storage.
 
     Create an access key based on the submitted key, and find the record
     from the appropriate table. Restore the record into a new dictionary

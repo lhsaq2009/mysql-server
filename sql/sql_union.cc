@@ -1394,7 +1394,7 @@ class Recursive_executor {
   }
 };
 
-bool SELECT_LEX_UNIT::ExecuteIteratorQuery(THD *thd) {
+bool SELECT_LEX_UNIT::ExecuteIteratorQuery(THD *thd) {     // TODO：b96K6S ==>
   THD_STAGE_INFO(thd, stage_executing);
   DEBUG_SYNC(thd, "before_join_exec");
 
@@ -1421,7 +1421,7 @@ bool SELECT_LEX_UNIT::ExecuteIteratorQuery(THD *thd) {
       }
     }
   }
-
+  // 通过 select_lex 游标向下执行，直到没有下一条记录
   for (SELECT_LEX *select_lex = first_select(); select_lex;
        select_lex = select_lex->next_select()) {
     JOIN *join = select_lex->join;
@@ -1437,9 +1437,9 @@ bool SELECT_LEX_UNIT::ExecuteIteratorQuery(THD *thd) {
       }
     }
   }
-
-  List<Item> *fields = get_field_list();
-  Query_result *query_result = this->query_result();
+  // 第一个字段名字：fields->first->info->field_name
+  List<Item> *fields = get_field_list();                      // 保存结果字段
+  Query_result *query_result = this->query_result();          // TODO：b96K6S ==> 保存结果
   DBUG_ASSERT(query_result != nullptr);
 
   if (query_result->start_execution(thd)) return true;
@@ -1484,7 +1484,7 @@ bool SELECT_LEX_UNIT::ExecuteIteratorQuery(THD *thd) {
   *send_records_ptr = 0;
 
   thd->get_stmt_da()->reset_current_row_for_condition();
-  if (m_root_iterator->Init()) {
+  if (m_root_iterator->Init()) {                                      // =>>
     return true;
   }
 
@@ -1502,7 +1502,7 @@ bool SELECT_LEX_UNIT::ExecuteIteratorQuery(THD *thd) {
     });
 
     for (;;) {
-      int error = m_root_iterator->Read();
+      int error = m_root_iterator->Read();                            // =>> ✅TODO：去读数据？？
       DBUG_EXECUTE_IF("bug13822652_1", thd->killed = THD::KILL_QUERY;);
 
       if (error > 0 || thd->is_error())  // Fatal error
@@ -1515,8 +1515,8 @@ bool SELECT_LEX_UNIT::ExecuteIteratorQuery(THD *thd) {
         return true;
       }
 
-      ++*send_records_ptr;
-      if (query_result->send_data(thd, *fields)) {
+      ++*send_records_ptr;                            // 每读到一行数据将 send_records_ptr 值加 1
+      if (query_result->send_data(thd, *fields)) { // =>> 向客户端「逐行」发送结果数据
         return true;
       }
       thd->get_stmt_da()->inc_current_row_for_condition();
@@ -1539,7 +1539,7 @@ bool SELECT_LEX_UNIT::ExecuteIteratorQuery(THD *thd) {
   @returns false if success, true if error
 */
 
-bool SELECT_LEX_UNIT::execute(THD *thd) {
+bool SELECT_LEX_UNIT::execute(THD *thd) {       // =>>
   DBUG_TRACE;
   DBUG_ASSERT(is_optimized());
 
@@ -1573,8 +1573,9 @@ bool SELECT_LEX_UNIT::execute(THD *thd) {
   */
   Change_current_select save_select(thd);
 
+  // 在 8.0.20 以后没有了这一步判断以及后面的代码，直接 return ExecuteIteratorQuery (thd)）
   if (m_root_iterator != nullptr) {
-    return ExecuteIteratorQuery(thd);
+    return ExecuteIteratorQuery(thd);       // =>> 读
   }
 
   if (is_executed()) {

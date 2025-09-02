@@ -1237,7 +1237,7 @@ ibool row_vers_old_has_index_entry(
   }
 }
 
-/** Constructs the version of a clustered index record which a consistent
+/** 构造一致读取 应看到的聚集索引记录的版本。我们假设存储在 rec 中的 trx id 使得一致读取不应在其当前版本中看到 rec；Constructs the version of a clustered index record which a consistent
  read should see. We assume that the trx id stored in rec is such that
  the consistent read should not see rec in its present version.
  @param[in]   rec   record in a clustered index; the caller must have a latch
@@ -1259,7 +1259,7 @@ ibool row_vers_old_has_index_entry(
  @param[out]   vrow   reports virtual column info if any
  @param[in]   lob_undo   undo log to be applied to blobs.
  @return DB_SUCCESS or DB_MISSING_HISTORY */
-dberr_t row_vers_build_for_consistent_read(
+dberr_t row_vers_build_for_consistent_read(                                   // TODO：MVCC 查询 undo 老版本记录，直到记录可见
     const rec_t *rec, mtr_t *mtr, dict_index_t *index, ulint **offsets,
     ReadView *view, mem_heap_t **offset_heap, mem_heap_t *in_heap,
     rec_t **old_vers, const dtuple_t **vrow, lob::undo_vers_t *lob_undo) {

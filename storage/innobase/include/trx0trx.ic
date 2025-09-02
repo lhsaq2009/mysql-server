@@ -202,7 +202,7 @@ bool trx_is_temp_rseg_updated(const trx_t *trx) /*!< in: transaction */
           trx->rsegs.m_noredo.update_undo != 0);
 }
 
-/** Check if redo/noredo rseg is modified for insert/update. */
+/** 检查是否修改了 redo /no redo rseg 以进行插入/更新；Check if redo/noredo rseg is modified for insert/update. */
 UNIV_INLINE
 bool trx_is_rseg_updated(const trx_t *trx) /*!< in: transaction */
 {

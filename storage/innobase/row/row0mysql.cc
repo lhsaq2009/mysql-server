@@ -1204,7 +1204,7 @@ run_again:
   return (err);
 }
 
-/** Sets a table lock on the table mentioned in prebuilt.
+/** 在预生成中提到的表上设置表锁；Sets a table lock on the table mentioned in prebuilt.
 @param[in]	prebuilt	table handle
 @return error code or DB_SUCCESS */
 dberr_t row_lock_table(row_prebuilt_t *prebuilt) {
@@ -2408,7 +2408,7 @@ error:
   return err;
 }
 
-/** Does an update or delete of a row for MySQL.
+/** ✅ 更新或删除 MySQL 的行；Does an update or delete of a row for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS */
@@ -2596,7 +2596,7 @@ run_again:
   DEBUG_SYNC_C("foreign_constraint_update_cascade");
   TABLE *temp = thr->prebuilt->m_mysql_table;
   thr->prebuilt->m_mysql_table = NULL;
-  row_upd_step(thr);
+  row_upd_step(thr);                                        // =>>
   thr->prebuilt->m_mysql_table = temp;
   /* The recursive call for cascading update/delete happens
   in above row_upd_step(), reset the counter once we come

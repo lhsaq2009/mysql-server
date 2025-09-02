@@ -73,7 +73,7 @@
 #include <malloc.h>
 #endif
 
-const char *lock_descriptions[TL_WRITE_ONLY + 1] = {
+const char *lock_descriptions[TL_WRITE_ONLY + 1] = {                  // sss
     /* TL_UNLOCK                  */ "No lock",
     /* TL_READ_DEFAULT            */ NULL,
     /* TL_READ                    */ "Low priority read lock",

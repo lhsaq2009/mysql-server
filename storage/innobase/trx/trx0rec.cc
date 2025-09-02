@@ -2076,18 +2076,17 @@ byte *trx_undo_rec_get_partial_row(
 
 /** Erases the unused undo log page end.
  @return true if the page contained something, false if it was empty */
-static ibool trx_undo_erase_page_end(
+static ibool trx_undo_erase_page_end(   //
     page_t *undo_page, /*!< in/out: undo page whose end to erase */
     mtr_t *mtr)        /*!< in/out: mini-transaction */
 {
   ulint first_free;
 
-  first_free =
-      mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_FREE);
+  first_free = mach_read_from_2(undo_page + TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_FREE);
   memset(undo_page + first_free, 0xff,
          (UNIV_PAGE_SIZE - FIL_PAGE_DATA_END) - first_free);
 
-  mlog_write_initial_log_record(undo_page, MLOG_UNDO_ERASE_END, mtr);
+  mlog_write_initial_log_record(undo_page, MLOG_UNDO_ERASE_END, mtr);   // TODO 2023-06-08：把 Undo 写到 redo
   return (first_free != TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_HDR_SIZE);
 }
 
@@ -2112,12 +2111,12 @@ byte *trx_undo_parse_erase_page_end(
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Writes information to an undo log about an insert, update, or a delete
+/** 将有关聚集索引记录的插入、更新或删除标记的信息写入撤消日志。此信息用于事务的回滚和必须查看此事务历史记录的一致性读取；Writes information to an undo log about an insert, update, or a delete
  marking of a clustered index record. This information is used in a rollback of
  the transaction and in consistent reads that must look to the history of this
  transaction.
  @return DB_SUCCESS or error code */
-dberr_t trx_undo_report_row_operation(
+dberr_t trx_undo_report_row_operation(      // 该函数是生成 Undo Log 的总入口，delete，insert 也走这里
     ulint flags,                 /*!< in: if BTR_NO_UNDO_LOG_FLAG bit is
                                  set, does nothing */
     ulint op_type,               /*!< in: TRX_UNDO_INSERT_OP or
@@ -2184,7 +2183,7 @@ dberr_t trx_undo_report_row_operation(
     trx_assign_rseg_temp(trx);
   }
 
-  mtr_start(&mtr);
+  mtr_start(&mtr);    // 开启 mtr，MySQL 的 MTR 机制，注意这里开启了新的 MTR，与 row_upd_clust_step 函数不是同一个了
 
   if (is_temp_table) {
     /* If object is temporary, disable REDO logging that
@@ -2194,6 +2193,12 @@ dberr_t trx_undo_report_row_operation(
     undo_ptr = &trx->rsegs.m_noredo;
     mtr.set_log_mode(MTR_LOG_NO_REDO);
   } else {
+    /**
+     * trx->rsegs.m_redo = {trx_undo_ptr_t}
+     *      rseg = {trx_rseg_t *} 0x7fe306f381e8
+     *          insert_undo = {trx_undo_t *} NULL
+     *          update_undo = {trx_undo_t *} NULL
+     */
     undo_ptr = &trx->rsegs.m_redo;
   }
 
@@ -2211,7 +2216,7 @@ dberr_t trx_undo_report_row_operation(
       undo = undo_ptr->insert_undo;
 
       if (undo == NULL) {
-        err = trx_undo_assign_undo(trx, undo_ptr, TRX_UNDO_INSERT);
+        err = trx_undo_assign_undo(trx, undo_ptr, TRX_UNDO_INSERT);   // 如果事务上下文没有 insert_Undo，就去申请可用 Undo page
         undo = undo_ptr->insert_undo;
 
         if (undo == NULL) {
@@ -2229,7 +2234,7 @@ dberr_t trx_undo_report_row_operation(
       undo = undo_ptr->update_undo;
 
       if (undo == NULL) {
-        err = trx_undo_assign_undo(trx, undo_ptr, TRX_UNDO_UPDATE);
+        err = trx_undo_assign_undo(trx, undo_ptr, TRX_UNDO_UPDATE);   // 如果事务上下文没有 update_Undo，就去申请可用 Undo page，细节的话放到 Undo Log 源码章节
         undo = undo_ptr->update_undo;
 
         if (undo == NULL) {
@@ -2259,25 +2264,25 @@ dberr_t trx_undo_report_row_operation(
     undo_page = buf_block_get_frame(undo_block);
     ut_ad(page_no == undo_block->page.id.page_no());
 
-    switch (op_type) {
+    switch (op_type) {      // 可以看到 Undo 分两类，insert 和 update
       case TRX_UNDO_INSERT_OP:
-        offset = trx_undo_page_report_insert(undo_page, trx, index, clust_entry,
+        offset = trx_undo_page_report_insert(undo_page, trx, index, clust_entry,  // 写 insert Undo
                                              &mtr);
         break;
       default:
         ut_ad(op_type == TRX_UNDO_MODIFY_OP);
         offset =
-            trx_undo_page_report_modify(undo_page, trx, index, rec, offsets,
+            trx_undo_page_report_modify(undo_page, trx, index, rec, offsets,      // 写 upate Undo
                                         update, cmpl_info, clust_entry, &mtr);
     }
 
-    if (UNIV_UNLIKELY(offset == 0)) {
+    if (UNIV_UNLIKELY(offset == 0)) {     // offset 不等于0表示有 Undo 变更，进入下面的逻辑
       /* The record did not fit on the page. We erase the
       end segment of the undo log page and write a log
       record of it: this is to ensure that in the debug
       version the replicate page constructed using the log
       records stays identical to the original page */
-
+      // 这个函数要特别注意，之前看 MySQL 技术内幕一书时，看到 Undo Log 由 Redo Log 做安全保证，一直没找到相应源码，没想到就是它
       if (!trx_undo_erase_page_end(undo_page, &mtr)) {
         /* The record did not fit on an empty
         undo page. Discard the freshly allocated
@@ -2292,7 +2297,7 @@ dberr_t trx_undo_report_row_operation(
         first, because it may be holding lower-level
         latches, such as SYNC_FSP and SYNC_FSP_PAGE. */
 
-        mtr_commit(&mtr);
+        mtr_commit(&mtr);   // mtr 提交
         mtr_start(&mtr);
 
         if (index->table->is_temporary()) {
@@ -2477,8 +2482,8 @@ bool trx_undo_prev_version_build(
         mtr_memo_contains_page(index_mtr, index_rec, MTR_MEMO_PAGE_X_FIX));
   ut_ad(rec_offs_validate(rec, index, offsets));
   ut_a(index->is_clustered());
-
-  roll_ptr = row_get_rec_roll_ptr(rec, index, offsets);
+  // 02 00 00 01 19 05 b6;      &roll_ptr =
+  roll_ptr = row_get_rec_roll_ptr(rec, index, offsets);     // 获取记录的回滚指针
 
   *old_vers = NULL;
 
@@ -2498,7 +2503,7 @@ bool trx_undo_prev_version_build(
   if (trx_undo_get_undo_rec(roll_ptr, rec_trx_id, heap, is_temp,
                             index->table->name, &undo_rec)) {
     if (v_status & TRX_UNDO_PREV_IN_PURGE) {
-      /* We are fetching the record being purged */
+      /* 我们正在获取被清除的记录；We are fetching the record being purged */
       undo_rec = trx_undo_get_undo_rec_low(roll_ptr, heap, is_temp);
     } else {
       /* The undo record may already have been purged,

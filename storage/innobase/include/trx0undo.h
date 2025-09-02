@@ -310,7 +310,7 @@ void trx_undo_mem_free(trx_undo_t *undo); /* in: the undo object to be freed */
 /* Types of an undo log segment */
 #define TRX_UNDO_INSERT 1 /* contains undo entries for inserts */
 #define TRX_UNDO_UPDATE                  \
-  2 /* contains undo entries for updates \
+  2 /* 包含用于更新和删除标记的撤消条目：简而言之，修改（ 名称 “UPDATE” 是历史遗物 ）；contains undo entries for updates \
     and delete markings: in short,       \
     modifys (the name 'UPDATE' is a      \
     historical relic) */
@@ -430,8 +430,8 @@ void trx_undo_gtid_write(trx_t *trx, trx_ulogf_t *undo_header, trx_undo_t *undo,
 
 #endif /* !UNIV_HOTBACKUP */
 
-/** The offset of the undo log page header on pages of the undo log */
-#define TRX_UNDO_PAGE_HDR FSEG_PAGE_DATA
+/** undo log page header 在撤消日志页面上的偏移量；The offset of the undo log page header on pages of the undo log */
+#define TRX_UNDO_PAGE_HDR FSEG_PAGE_DATA      // 38 bytes
 /*-------------------------------------------------------------*/
 /** Transaction undo log page header offsets */
 /* @{ */
@@ -452,7 +452,7 @@ void trx_undo_gtid_write(trx_t *trx, trx_ulogf_t *undo_header, trx_undo_t *undo,
   6 /*!< The file list node in the chain \
     of undo log pages */
 /*-------------------------------------------------------------*/
-#define TRX_UNDO_PAGE_HDR_SIZE (6 + FLST_NODE_SIZE)
+#define TRX_UNDO_PAGE_HDR_SIZE (6 + FLST_NODE_SIZE)       // FLST_NODE_SIZE = 12 bytes
 /*!< Size of the transaction undo
 log page header, in bytes */
 /* @} */
@@ -474,8 +474,8 @@ record. */
 
 /** The offset of the undo log segment header on the first page of the undo
 log segment */
-
-#define TRX_UNDO_SEG_HDR (TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_HDR_SIZE)
+//                        ↓ 38 bytes          ↓ 18 bytes
+#define TRX_UNDO_SEG_HDR (TRX_UNDO_PAGE_HDR + TRX_UNDO_PAGE_HDR_SIZE)       // Undo Page -> Undo Page Header
 /** Undo log segment header */
 /* @{ */
 /*-------------------------------------------------------------*/

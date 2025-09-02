@@ -224,7 +224,7 @@ ulint rec_get_bit_field_1(
     ulint shift)      /*!< in: shift right applied after masking */
 {
   ut_ad(rec);
-
+  // 32 = 0x20 = 0010 0000，
   return ((mach_read_from_1(rec - offs) & mask) >> shift);
 }
 

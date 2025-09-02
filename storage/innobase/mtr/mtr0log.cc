@@ -60,7 +60,7 @@ void mlog_catenate_string(mtr_t *mtr,      /*!< in: mtr */
 /** Writes the initial part of a log record consisting of one-byte item
  type and four-byte space and page numbers. Also pushes info
  to the mtr memo that a buffer page has been modified. */
-void mlog_write_initial_log_record(
+void mlog_write_initial_log_record(               // 生成了 Undo 的 redo
     const byte *ptr, /*!< in: pointer to (inside) a buffer
                      frame holding the file page where
                      modification is made */
@@ -72,14 +72,14 @@ void mlog_write_initial_log_record(
   ut_ad(type <= MLOG_BIGGEST_TYPE);
   ut_ad(type > MLOG_8BYTES);
 
-  log_ptr = mlog_open(mtr, 11);
+  log_ptr = mlog_open(mtr, 11);     // 开启一个 Redo Log 对象 ( 在 Redo Log buffer )
 
   /* If no logging is requested, we may return now */
   if (log_ptr == NULL) {
     return;
   }
-
-  log_ptr = mlog_write_initial_log_record_fast(ptr, type, log_ptr, mtr);
+  // ptr = undo_page
+  log_ptr = mlog_write_initial_log_record_fast(ptr, type, log_ptr, mtr);      // 将 Undo 写到 redo
 
   mlog_close(mtr, log_ptr);
 }

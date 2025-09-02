@@ -41,8 +41,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 versions the 'new' checksum of the page */
 #define FIL_PAGE_SPACE_OR_CHKSUM 0
 
-/** page offset inside space */
-#define FIL_PAGE_OFFSET 4
+/** 页面偏移量内部空间；page offset inside space */
+#define FIL_PAGE_OFFSET 4         // 页号，举例页首地址 4个字节偏移位置后读取
 
 /** if there is a 'natural' predecessor of the page, its offset.
 Otherwise FIL_NULL. This field is not set on BLOB pages, which are stored as a
@@ -101,7 +101,7 @@ constexpr ulint FIL_PAGE_COMPRESS_SIZE_V1 = FIL_PAGE_ORIGINAL_SIZE_V1 + 2;
 constexpr ulint FIL_RTREE_SPLIT_SEQ_NUM = FIL_PAGE_FILE_FLUSH_LSN;
 
 /** starting from 4.1.x this contains the space id of the page */
-constexpr ulint FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID = 34;
+constexpr ulint FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID = 34;              // 页属于哪个表空间
 
 /** alias for space id */
 #define FIL_PAGE_SPACE_ID FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID

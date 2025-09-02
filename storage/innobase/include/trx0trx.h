@@ -646,7 +646,7 @@ struct trx_lock_t {
   /** Memory heap for trx_locks. Protected by trx->mutex */
   mem_heap_t *lock_heap;
 
-  /** Locks requested by the transaction.
+  /** 事务请求的锁；Locks requested by the transaction.
   Modifications are protected by trx->mutex and lock_sys mutex.
   Reads can be performed while holding trx->mutex or exclusive lock_sys latch.
   One can also check if this list is empty or not from the thread running this
@@ -748,13 +748,13 @@ and sometimes by trx->mutex.
 * Killing of asynchronous transactions. */
 
 /** Represents an instance of rollback segment along with its state variables.*/
-struct trx_undo_ptr_t {
+struct trx_undo_ptr_t {                                              // undo 指针
   trx_rseg_t *rseg;        /*!< rollback segment assigned to the
                            transaction, or NULL if not assigned
                            yet */
   trx_undo_t *insert_undo; /*!< pointer to the insert undo log, or
                            NULL if no inserts performed yet */
-  trx_undo_t *update_undo; /*!< pointer to the update undo log, or
+  trx_undo_t *update_undo; /*!< pointer to the update undo log, or   // 指向 update undo log 的指针，如果尚未执行更新，则为 NULL
                            NULL if no update performed yet */
 };
 
@@ -1105,7 +1105,7 @@ struct trx_t {
   was started: in case of an error, trx
   is rolled back down to this undo
   number; see note at undo_mutex! */
-  trx_rsegs_t rsegs;    /* rollback segments for undo logging */
+  trx_rsegs_t rsegs;    /* 回滚段用于撤销日志记录；rollback segments for undo logging */
   undo_no_t roll_limit; /*!< least undo number to undo during
                         a partial rollback; 0 otherwise */
 #ifdef UNIV_DEBUG
@@ -1297,7 +1297,7 @@ class TrxInInnoDB {
     return (trx->abort || trx->state == TRX_STATE_FORCED_ROLLBACK);
   }
 
-  /**
+  /** 为事务请求的开始语句
   Start statement requested for transaction.
   @param[in, out] trx	Transaction at the start of a SQL statement */
   static void begin_stmt(trx_t *trx) { enter(trx, false); }

@@ -48,14 +48,15 @@ enum select_mode {
 };
 
 /* Basic lock modes */
-enum lock_mode {
-  LOCK_IS = 0,          /* intention shared */
-  LOCK_IX,              /* intention exclusive */
-  LOCK_S,               /* shared */
-  LOCK_X,               /* exclusive */
-  LOCK_AUTO_INC,        /* locks the auto-inc counter of a table
-                        in an exclusive mode */
-  LOCK_NONE,            /* this is used elsewhere to note consistent read */
+enum lock_mode {        // InnoDB 表锁类型
+  LOCK_IS = 0,          /* 0，intention shared                                */
+  LOCK_IX,              /* 1，intention exclusive； innodb update ... where ..*/
+
+  LOCK_S,               /* 2，shared */
+  LOCK_X,               /* 3，TODO 2023-05-29：是时候用它 ？？ exclusive */
+  LOCK_AUTO_INC,        /* locks the auto-inc counter of a table in an exclusive mode */
+
+  LOCK_NONE,            /* 这在其它地方被用来指出一致的阅读；this is used elsewhere to note consistent read */
   LOCK_NUM = LOCK_NONE, /* number of lock modes */
   LOCK_NONE_UNSET = 255
 };

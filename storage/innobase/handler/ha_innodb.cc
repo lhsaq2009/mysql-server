@@ -1745,7 +1745,7 @@ innodb_session_t *&thd_to_innodb_session(THD *thd) {
   return (innodb_session);
 }
 
-/** Obtain the InnoDB transaction of a MySQL thread.
+/** 获取 MySQL 线程的 InnoDB 事务；Obtain the InnoDB transaction of a MySQL thread.
 @param[in,out]	thd	MySQL thread handler.
 @return reference to transaction pointer */
 MY_ATTRIBUTE((warn_unused_result))
@@ -8796,11 +8796,11 @@ static void innobase_get_multi_value_and_diff(
   }
 }
 
-/** Checks which fields have changed in a row and stores information
+/** 检查一行中哪些字段发生了更改，并将其信息存储到更新向量中；Checks which fields have changed in a row and stores information
  of them to an update vector.
  @return DB_SUCCESS or error code */
 static dberr_t calc_row_difference(
-    upd_t *uvect,             /*!< in/out: update vector */
+    upd_t *uvect,             /*!< ✅ in/out: update vector */
     const uchar *old_row,     /*!< in: old row in MySQL format */
     uchar *new_row,           /*!< in: new row in MySQL format */
     TABLE *table,             /*!< in: table in MySQL data
@@ -8814,8 +8814,8 @@ static dberr_t calc_row_difference(
   Field *field;
   enum_field_types field_mysql_type;
   uint n_fields;
-  ulint o_len;
-  ulint n_len;
+  ulint o_len;              // 更新前，字段的实际长度
+  ulint n_len;              // 更新后，字段的实际长度
   ulint col_pack_len;
   const byte *new_mysql_row_col;
   const byte *old_mysql_row_col;
@@ -8847,7 +8847,7 @@ static dberr_t calc_row_difference(
 
   for (i = 0; i < n_fields; i++) {
     dfield.reset();
-
+    // field->field_name
     field = table->field[i];
     bool is_virtual = innobase_is_v_fld(field);
     bool is_multi_value = innobase_is_multi_value_fld(field);
@@ -8902,7 +8902,7 @@ static dberr_t calc_row_difference(
           the real payload data length is stored in
           1 or 2 bytes */
 
-          o_ptr = row_mysql_read_true_varchar(
+          o_ptr = row_mysql_read_true_varchar(      // 获取 varchar 类型的真实长度
               &o_len, o_ptr,
               (ulint)(down_cast<Field_varstring *>(field)->length_bytes));
 
@@ -8923,7 +8923,7 @@ static dberr_t calc_row_difference(
       }
     }
 
-    if (field->real_maybe_null()) {
+    if (field->real_maybe_null()) {     // field
       if (field->is_null_in_record(old_row)) {
         o_len = UNIV_SQL_NULL;
       }
@@ -9230,11 +9230,11 @@ if its index columns are updated!
 @param[out] new_row	Updated row contents in MySQL format
 @return error number or 0 */
 
-int ha_innobase::update_row(const uchar *old_row, uchar *new_row) {
+int ha_innobase::update_row(const uchar *old_row, uchar *new_row) {           // InnoDB 更新 buffer pool 中 table 的 row
   int err;
 
   dberr_t error;
-  trx_t *trx = thd_to_trx(m_user_thd);
+  trx_t *trx = thd_to_trx(m_user_thd);                                        // 获取事务处理器
   ib_uint64_t new_counter = 0;
 
   DBUG_TRACE;
@@ -9302,7 +9302,7 @@ int ha_innobase::update_row(const uchar *old_row, uchar *new_row) {
 
   innobase_srv_conc_enter_innodb(m_prebuilt);
 
-  error = row_update_for_mysql((byte *)old_row, m_prebuilt);
+  error = row_update_for_mysql((byte *)old_row, m_prebuilt);      // =>> ✅ 更新或删除 MySQL 的行
 
   if (dict_table_has_autoinc_col(m_prebuilt->table)) {
     new_counter = row_upd_get_new_autoinc_counter(
@@ -9635,8 +9635,7 @@ start of a new SQL statement. Since the query id can theoretically
 overwrap, we use this test only as a secondary way of determining the
 start of a new SQL statement. */
 
-/** Positions an index cursor to the index specified in the handle. Fetches the
- row if any.
+/** 将索引光标定位到句柄中指定的索引。提取行 ( 如果有 ) ；Positions an index cursor to the index specified in the handle. Fetches the row if any.
  @return 0, HA_ERR_KEY_NOT_FOUND, or error number */
 
 int ha_innobase::index_read(
@@ -9717,7 +9716,7 @@ int ha_innobase::index_read(
   } else {
     dtuple_set_n_fields(m_prebuilt->m_stop_tuple, 0);
   }
-
+  // eg1：find_flag = HA_READ_AFTER_KEY
   page_cur_mode_t mode = convert_search_mode_to_innobase(find_flag);
 
   ulint match_mode = 0;
@@ -9736,16 +9735,16 @@ int ha_innobase::index_read(
   if (mode != PAGE_CUR_UNSUPP) {
     innobase_srv_conc_enter_innodb(m_prebuilt);
 
-    if (!m_prebuilt->table->is_intrinsic()) {
+    if (!m_prebuilt->table->is_intrinsic()) {                         // 不是内部表
       if (TrxInInnoDB::is_aborted(m_prebuilt->trx)) {
         innobase_rollback(ht, m_user_thd, false);
 
         return convert_error_code_to_mysql(DB_FORCED_ABORT, 0, m_user_thd);
       }
 
-      m_prebuilt->ins_sel_stmt = thd_is_ins_sel_stmt(m_user_thd);
-
-      ret = row_search_mvcc(buf, mode, m_prebuilt, match_mode, 0);
+      m_prebuilt->ins_sel_stmt = thd_is_ins_sel_stmt(m_user_thd);     // 检查语句的类型是否为 INSERT ....SELECT 涉及使用内部表
+      // mode = PAGE_CUR_G；match_mode = 0；
+      ret = row_search_mvcc(buf, mode, m_prebuilt, match_mode, 0);    // =>>
 
     } else {
       m_prebuilt->session = thd_to_innodb_session(m_user_thd);
@@ -9861,7 +9860,7 @@ dict_index_t *ha_innobase::innobase_get_index(
   return index;
 }
 
-/** Changes the active index of a handle.
+/** 更改句柄的活动索引；Changes the active index of a handle.
  @return 0 or error code */
 int ha_innobase::change_active_index(
     uint keynr) /*!< in: use this index; MAX_KEY means always clustered
@@ -10071,7 +10070,7 @@ int ha_innobase::index_prev(
   return (general_fetch(buf, ROW_SEL_PREV, 0));
 }
 
-/** Positions a cursor on the first record in an index and reads the
+/** 将游标定位在索引中的第一条记录上，并将相应的行读取到 buf；Positions a cursor on the first record in an index and reads the
  corresponding row to buf.
  @return 0, HA_ERR_END_OF_FILE, or error code */
 
@@ -10081,7 +10080,7 @@ int ha_innobase::index_first(uchar *buf) /*!< in/out: buffer for the row */
 
   ha_statistic_increment(&System_status_var::ha_read_first_count);
 
-  int error = index_read(buf, NULL, 0, HA_READ_AFTER_KEY);
+  int error = index_read(buf, NULL, 0, HA_READ_AFTER_KEY);      // =>>
 
   /* MySQL does not seem to allow this to return HA_ERR_KEY_NOT_FOUND */
 
@@ -10125,7 +10124,7 @@ int ha_innobase::read_range_next() {
   return (handler::read_range_next());
 }
 
-/** Initialize a table scan.
+/** 初始化表扫描；Initialize a table scan.
 @param[in]	scan	whether this is a second call to rnd_init()
                         without rnd_end() in between
 @return 0 or error number */
@@ -10152,7 +10151,7 @@ int ha_innobase::rnd_init(bool scan) {
 
 int ha_innobase::rnd_end(void) { return (index_end()); }
 
-/** Reads the next row in a table scan (also used to read the FIRST row
+/** 读取表扫描中的下一行 ( 也用于读取表扫描中的第一行 ) ； Reads the next row in a table scan (also used to read the FIRST row
  in a table scan).
  @return 0, HA_ERR_END_OF_FILE, or error number */
 
@@ -10166,7 +10165,7 @@ int ha_innobase::rnd_next(uchar *buf) /*!< in/out: returns the row in this
   ha_statistic_increment(&System_status_var::ha_read_rnd_next_count);
 
   if (m_start_of_scan) {
-    error = index_first(buf);
+    error = index_first(buf);       // =>>
 
     if (error == HA_ERR_KEY_NOT_FOUND) {
       error = HA_ERR_END_OF_FILE;
@@ -18035,12 +18034,12 @@ int ha_innobase::external_lock(THD *thd, /*!< in: handle to the user thread */
     *trx->detailed_error = 0;
 
     innobase_register_trx(ht, thd, trx);
-
+    // DD：data dictionary
     /* For read on DD table, we will always use consistent reads
     independent of trx isolation level. */
     if (lock_type != F_WRLCK && m_prebuilt->table->is_dd_table) {
       m_prebuilt->select_lock_type = LOCK_NONE;
-      m_stored_select_lock_type = LOCK_NONE;
+      m_stored_select_lock_type = LOCK_NONE;              //
     }
 
     if (trx->isolation_level == TRX_ISO_SERIALIZABLE &&

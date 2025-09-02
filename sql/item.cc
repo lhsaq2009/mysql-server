@@ -7024,7 +7024,7 @@ Item *Item::cache_const_expr_transformer(uchar *arg) {
   return this;
 }
 
-bool Item_field::send(Protocol *protocol, String *) {
+bool Item_field::send(Protocol *protocol, String *) {     // =>>
   return protocol->store_field(result_field);
 }
 

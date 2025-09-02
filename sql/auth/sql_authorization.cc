@@ -1977,7 +1977,7 @@ void err_readonly(THD *thd) {
   @returns false on success, true on access denied error
 */
 
-bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables) {
+bool check_one_table_access(THD *thd, ulong privilege, TABLE_LIST *all_tables) {        //
   if (check_single_table_access(thd, privilege, all_tables, false)) return true;
 
   // Check privileges on tables from subqueries and implicitly opened tables

@@ -117,11 +117,11 @@ my_socket thd_get_fd(THD *thd);
 void thd_store_globals(THD *thd);
 
 /*
-  The thread pool must be able to execute statements using the connection
-  state in THD object. This is the main objective of the thread pool to
-  schedule the start of these commands.
+  线程池必须能够使用连接执行语句 THD 对象中的状态。这是线程池的主要目标安排这些命令的开始
+  The thread pool must be able to execute statements using the connection state in THD object.
+  This is the main objective of the thread pool to schedule the start of these commands.
 */
-bool do_command(THD *thd);
+bool do_command(THD *thd);      // No
 
 /*
   The thread pool requires an interface to the connection logic in the

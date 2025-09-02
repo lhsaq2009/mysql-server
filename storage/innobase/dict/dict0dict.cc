@@ -1126,7 +1126,7 @@ dict_table_t *dict_table_open_on_name(
 }
 #endif /* !UNIV_HOTBACKUP */
 
-/** Adds system columns to a table object. */
+/** Adds system columns to a table object.TODO：【备忘】Record 添加三个隐藏字段 */
 void dict_table_add_system_columns(dict_table_t *table, /*!< in/out: table */
                                    mem_heap_t *heap) /*!< in: temporary heap */
 {
@@ -1138,18 +1138,20 @@ void dict_table_add_system_columns(dict_table_t *table, /*!< in/out: table */
   /* NOTE: the system columns MUST be added in the following order
   (so that they can be indexed by the numerical value of DATA_ROW_ID,
   etc.) and as the last columns of the table memory object.
-  The clustered index will not always physically contain all system
-  columns.
-  Intrinsic table don't need DB_ROLL_PTR as UNDO logging is turned off
-  for these tables. */
 
+  // 总结：并不是所有表记录都有这三个系统字段，一些内部表的记录不需要
+
+  The clustered index will not always physically contain all system columns.
+  Intrinsic table ( 内部表 ) don't need DB_ROLL_PTR as UNDO logging is turned off for these tables. */
+
+  /* 添加行 ID */
   dict_mem_table_add_col(table, heap, "DB_ROW_ID", DATA_SYS,
                          DATA_ROW_ID | DATA_NOT_NULL, DATA_ROW_ID_LEN);
-
+  /* 添加事务 ID */
   dict_mem_table_add_col(table, heap, "DB_TRX_ID", DATA_SYS,
                          DATA_TRX_ID | DATA_NOT_NULL, DATA_TRX_ID_LEN);
-
-  if (!table->is_intrinsic()) {
+  /* 添加回滚指针 */
+  if (!table->is_intrinsic()) {   /* 用于判断是否为内部表 */
     dict_mem_table_add_col(table, heap, "DB_ROLL_PTR", DATA_SYS,
                            DATA_ROLL_PTR | DATA_NOT_NULL, DATA_ROLL_PTR_LEN);
 

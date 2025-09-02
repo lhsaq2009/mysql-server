@@ -69,9 +69,9 @@ page size | file space extent size
 /** File space extent size (one megabyte) in pages for MIN page size */
 #define FSP_EXTENT_SIZE_MIN (1048576 / UNIV_PAGE_SIZE_MIN)
 
-/** On a page of any file segment, data may be put starting from this
+/** 在任何文件段的页面上，数据可以从此偏移量开始放置；On a page of any file segment, data may be put starting from this
 offset */
-#define FSEG_PAGE_DATA FIL_PAGE_DATA
+#define FSEG_PAGE_DATA FIL_PAGE_DATA        // 38 bytes
 
 /** @name File segment header
 The file segment header points to the inode describing the file segment. */

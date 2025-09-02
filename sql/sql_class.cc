@@ -2505,18 +2505,20 @@ err:
   return 1;                              /* purecov: inspected */
 }
 
-bool THD::send_result_set_row(List<Item> *row_items) {
+bool THD::send_result_set_row(List<Item> *row_items) {              // =>>
   char buffer[MAX_FIELD_WIDTH];
   String str_buffer(buffer, sizeof(buffer), &my_charset_bin);
   List_iterator_fast<Item> it(*row_items);
 
   DBUG_TRACE;
 
-  for (Item *item = it++; item; item = it++) {
-    if (item->send(m_protocol, &str_buffer) || is_error()) return true;
+  for (Item *item = it++; item; item = it++) {                      // 遍历每行字段s
+    // 字段名：((const Item_field *)item) -> field -> field_name
+    // 字段值：((const Item_field *)item) -> field -> ptr
+    //
+    if (item->send(m_protocol, &str_buffer) || is_error()) return true;   // =>>
     /*
-      Reset str_buffer to its original state, as it may have been altered in
-      Item::send().
+      Reset str_buffer to its original state, as it may have been altered in Item::send().
     */
     str_buffer.set(buffer, sizeof(buffer), &my_charset_bin);
   }
@@ -2722,7 +2724,7 @@ bool THD::sql_parser() {
     cleanup_after_parse_error();
     return true;
   }
-  if (root != nullptr && lex->make_sql_cmd(root)) {
+  if (root != nullptr && lex->make_sql_cmd(root)) {             // =>>
     return true;
   }
   return false;

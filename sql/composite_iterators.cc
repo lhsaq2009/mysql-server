@@ -74,7 +74,7 @@ void SwitchSlice(JOIN *join, int slice_num) {
 
 int FilterIterator::Read() {
   for (;;) {
-    int err = m_source->Read();
+    int err = m_source->Read();     // =>>
     if (err != 0) return err;
 
     bool matched = m_condition->val_int();
@@ -157,7 +157,7 @@ int LimitOffsetIterator::Read() {
   }
 
   ++m_seen_rows;
-  return m_source->Read();
+  return m_source->Read();      // =>>
 }
 
 vector<RowIterator::Child> FilterIterator::children() const {

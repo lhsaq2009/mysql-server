@@ -410,7 +410,7 @@ void ReadView::copy_trx_ids(const trx_ids_t &trx_ids) {
   m_up_limit_id = m_ids.front();
 
 #ifdef UNIV_DEBUG
-  /* Assert that all transaction ids in list are active. */
+  /* 断言列表中的所有事务 ID 都处于活动状态；Assert that all transaction ids in list are active. */
   for (trx_ids_t::const_iterator it = trx_ids.begin(); it != trx_ids.end();
        ++it) {
     trx_t *trx = trx_get_rw_trx_by_id(*it);
@@ -420,12 +420,12 @@ void ReadView::copy_trx_ids(const trx_ids_t &trx_ids) {
 #endif /* UNIV_DEBUG */
 }
 
-/**
+/** 开启一个 ReadView，在该 View 中，可以看到目前为止的所有事务
 Opens a read view where exactly the transactions serialized before this
 point in time are seen in the view.
 @param id		Creator transaction id */
 
-void ReadView::prepare(trx_id_t id) {
+void ReadView::prepare(trx_id_t id) {         // 填充 View
   ut_ad(mutex_own(&trx_sys->mutex));
 
   m_creator_trx_id = id;
@@ -459,7 +459,7 @@ Find a free view from the active list, if none found then allocate
 a new view.
 @return a view to use */
 
-ReadView *MVCC::get_view() {
+ReadView *MVCC::get_view() {                      // 从空闲列表里获取并移除一个 view
   ut_ad(mutex_own(&trx_sys->mutex));
 
   ReadView *view;
@@ -475,7 +475,7 @@ ReadView *MVCC::get_view() {
     }
   }
 
-  return (view);
+  return (view);                                  // 获取到 ReadView 对象
 }
 
 /**
@@ -511,7 +511,7 @@ Allocate and create a view.
 @param view		view owned by this class created for the
                         caller. Must be freed by calling view_close()
 @param trx		transaction instance of caller */
-void MVCC::view_open(ReadView *&view, trx_t *trx) {
+void MVCC::view_open(ReadView *&view, trx_t *trx) {                 // ReadView：打开
   ut_ad(!srv_read_only_mode);
 
   /** If no new RW transaction has been started since the last view
@@ -548,11 +548,11 @@ void MVCC::view_open(ReadView *&view, trx_t *trx) {
   } else {
     mutex_enter(&trx_sys->mutex);
 
-    view = get_view();
+    view = get_view();            // =>> 获取 ReadView 对象
   }
 
   if (view != NULL) {
-    view->prepare(trx->id);
+    view->prepare(trx->id);       // =>>
 
     UT_LIST_ADD_FIRST(m_views, view);
 

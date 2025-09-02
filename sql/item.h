@@ -3358,7 +3358,7 @@ class Item_field : public Item_ident {
   */
   TABLE_LIST *table_ref;
   /// Source field
-  Field *field;
+  Field *field;                     // 存放着字段值
   /**
     Item's original field. Used to compare fields in Item_field::eq() in order
     to get proper result when field is transformed by tmp table.

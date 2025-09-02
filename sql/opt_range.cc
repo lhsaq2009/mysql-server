@@ -3070,9 +3070,9 @@ static int fill_used_fields_bitmap(PARAM *param) {
     need to combine estimates of various access methods, taking into account
     correlations between sets of rows they will return.
 
+    例如，如果 tbl.key1 和 tbl.key2 的值是独立的（ 如果我们没有关于它们相关性的信息，这是一个正确的假设 ），那么正确的估计将是：
     For example, if values of tbl.key1 and tbl.key2 are independent (a right
-    assumption if we have no information about their correlation) then the
-    correct estimate will be:
+    assumption if we have no information about their correlation) then the correct estimate will be:
 
       E(#rows("tbl.key1 < c1 AND tbl.key2 < c2")) =
       = E(#rows(tbl.key1 < c1)) / total_rows(tbl) * E(#rows(tbl.key2 < c2)
@@ -10917,7 +10917,7 @@ uint quick_range_seq_next(range_seq_t rseq, KEY_MULTI_RANGE *range) {
 }
 
 /*
-  Get next possible record using quick-struct.
+  使用快速结构获取下一个可能的记录;Get next possible record using quick-struct.
 
   SYNOPSIS
     QUICK_RANGE_SELECT::get_next()

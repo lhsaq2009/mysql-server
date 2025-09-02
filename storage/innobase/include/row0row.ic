@@ -61,7 +61,7 @@ ulint row_get_trx_id_offset(
   return (offset);
 }
 
-/** Reads the trx id field from a clustered index record.
+/** 从聚集索引记录中读取 trx id 字段；Reads the trx id field from a clustered index record.
  @return value of the field */
 UNIV_INLINE
 trx_id_t row_get_rec_trx_id(
@@ -80,10 +80,10 @@ trx_id_t row_get_rec_trx_id(
     offset = row_get_trx_id_offset(index, offsets);
   }
 
-  return (trx_read_trx_id(rec + offset));
+  return (trx_read_trx_id(rec + offset));           // =>>
 }
 
-/** Reads the roll pointer field from a clustered index record.
+/** 从聚集索引记录中读取滚动指针字段；Reads the roll pointer field from a clustered index record.
  @return value of the field */
 UNIV_INLINE
 roll_ptr_t row_get_rec_roll_ptr(

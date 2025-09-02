@@ -166,7 +166,7 @@ class LimitOffsetIterator final : public RowIterator {
   }
 
  private:
-  unique_ptr_destroy_only<RowIterator> m_source;
+  unique_ptr_destroy_only<RowIterator> m_source;          // ???
 
   // Note: The number of seen rows starts off at m_limit if we have OFFSET,
   // which means we don't need separate LIMIT and OFFSET tests on the
@@ -178,7 +178,7 @@ class LimitOffsetIterator final : public RowIterator {
    */
   bool m_needs_offset;
 
-  const ha_rows m_limit, m_offset;
+  const ha_rows m_limit, m_offset;              // limit 0, 500
   const bool m_count_all_rows;
   ha_rows *m_skipped_rows;
 };

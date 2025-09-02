@@ -170,12 +170,12 @@ ssize, which is the number of shifts from 512. */
 #endif
 
 /* Page cursor search modes; the values must be in this order! */
-enum page_cur_mode_t {
+enum page_cur_mode_t {          // 查找某条件记录，用于定位
   PAGE_CUR_UNSUPP = 0,
-  PAGE_CUR_G = 1,
-  PAGE_CUR_GE = 2,
-  PAGE_CUR_L = 3,
-  PAGE_CUR_LE = 4,
+  PAGE_CUR_G = 1,               // 大于
+  PAGE_CUR_GE = 2,              // 大于等于
+  PAGE_CUR_L = 3,               // 小于
+  PAGE_CUR_LE = 4,              // 小于等于
 
   /*      PAGE_CUR_LE_OR_EXTENDS = 5,*/ /* This is a search mode used in
                                    "column LIKE 'abc%' ORDER BY column DESC";

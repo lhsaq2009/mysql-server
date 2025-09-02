@@ -139,7 +139,7 @@ enum btr_pcur_pos_t {
 
 #define btr_pcur_get_up_match(p) (p)->get_up_match()
 
-/** Position state of persistent B-tree cursor. */
+/** 持久 B 树游标的位置状态；Position state of persistent B-tree cursor. */
 enum pcur_pos_t {
 
   /** The persistent cursor is not positioned. */
@@ -160,7 +160,7 @@ enum pcur_pos_t {
   and rel_pos. */
   BTR_PCUR_IS_POSITIONED_OPTIMISTIC,
 
-  /** The persistent cursor is positioned by index search.
+  /** 持久游标由索引搜索定位；The persistent cursor is positioned by index search.
   Or optimistic get for rel_pos == BTR_PCUR_ON. */
   BTR_PCUR_IS_POSITIONED
 };

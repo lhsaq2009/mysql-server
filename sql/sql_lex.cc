@@ -4727,11 +4727,11 @@ static void unsafe_mixed_statement(LEX::enum_stmt_accessed_table a,
 */
 bool LEX::make_sql_cmd(Parse_tree_root *parse_tree) {
   if (!will_contextualize) return false;
-
-  m_sql_cmd = parse_tree->make_cmd(thd);
+  // 构建：Sql_cmd_update 对象
+  m_sql_cmd = parse_tree->make_cmd(thd);                        // =>>
   if (m_sql_cmd == nullptr) return true;
 
-  DBUG_ASSERT(m_sql_cmd->sql_command_code() == sql_command);
+  DBUG_ASSERT(m_sql_cmd->sql_command_code() == sql_command);    // sql_command = SQLCOM_UPDATE
 
   return false;
 }

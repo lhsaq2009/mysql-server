@@ -262,7 +262,7 @@ finished.
 @param[in]  trx   transaction which has finished processing a statement */
 void lock_on_statement_end(trx_t *trx);
 
-/** Used to specify the intended duration of a record lock. */
+/** 用于指定记录锁定的预期持续时间；Used to specify the intended duration of a record lock. */
 enum class lock_duration_t {
   /** Keep the lock according to the rules of particular isolation level, in
   particular in case of READ COMMITTED or less restricive modes, do not inherit
@@ -357,11 +357,9 @@ dberr_t lock_clust_rec_read_check_and_lock_alt(
     que_thr_t *thr)           /*!< in: query thread */
     MY_ATTRIBUTE((warn_unused_result));
 /** Checks that a record is seen in a consistent read.
- @return true if sees, or false if an earlier version of the record
- should be retrieved */
+ @return true if sees, or false if an earlier version of the record should be retrieved */
 bool lock_clust_rec_cons_read_sees(
-    const rec_t *rec,     /*!< in: user record which should be read or
-                          passed over by a read cursor */
+    const rec_t *rec,     /*!< in: user record which should be read or passed over by a read cursor */
     dict_index_t *index,  /*!< in: clustered index */
     const ulint *offsets, /*!< in: rec_get_offsets(rec, index) */
     ReadView *view);      /*!< in: consistent read view */
@@ -381,13 +379,14 @@ bool lock_sec_rec_cons_read_sees(
     const dict_index_t *index, /*!< in: index */
     const ReadView *view)      /*!< in: consistent read view */
     MY_ATTRIBUTE((warn_unused_result));
-/** Locks the specified database table in the mode given. If the lock cannot
- be granted immediately, the query thread is put to wait.
- @return DB_SUCCESS, DB_LOCK_WAIT, or DB_DEADLOCK */
-dberr_t lock_table(ulint flags, /*!< in: if BTR_NO_LOCKING_FLAG bit is set,
-                                does nothing */
-                   dict_table_t *table, /*!< in/out: database table
-                                        in dictionary cache */
+/**
+ *  以给定的模式锁定指定的数据库表。如果锁不能 立即授予，查询线程将进入等待状态
+ *  Locks the specified database table in the mode given.
+ *  If the lock cannot be granted immediately, the query thread is put to wait.
+ *  @return DB_SUCCESS, DB_LOCK_WAIT, or DB_DEADLOCK
+ */
+dberr_t lock_table(ulint flags,         /*!< in: if BTR_NO_LOCKING_FLAG bit is set, does nothing */
+                   dict_table_t *table, /*!< in/out: database table in dictionary cache */
                    lock_mode mode,      /*!< in: lock mode */
                    que_thr_t *thr)      /*!< in: query thread */
     MY_ATTRIBUTE((warn_unused_result));
@@ -669,7 +668,7 @@ void lock_trx_alloc_locks(trx_t *trx);
 /** Lock modes and types */
 /* @{ */
 #define LOCK_MODE_MASK                          \
-  0xFUL /*!< mask used to extract mode from the \
+  0xFUL /*!< mask used to extract mode from the \              // UL 是 unsigned Long 的缩写，也就是无符号长整数
         type_mode field in a lock */
 /** Lock types */
 /* @{ */
@@ -683,32 +682,31 @@ void lock_trx_alloc_locks(trx_t *trx);
 #endif
 
 #define LOCK_WAIT                          \
-  256 /*!< Waiting lock flag; when set, it \
-      means that the lock has not yet been \
-      granted, it is just waiting for its  \
-      turn in the wait queue */
+  256 /*!< 等待锁定标志;当设置时；Waiting lock flag; when set,
+           it means that the lock has not yet been granted,
+           it is just waiting for its turn in the wait queue */
 /* Precise modes */
 #define LOCK_ORDINARY                     \
   0 /*!< this flag denotes an ordinary    \
     next-key lock in contrast to LOCK_GAP \
     or LOCK_REC_NOT_GAP */
 #define LOCK_GAP                                     \
-  512 /*!< when this bit is set, it means that the   \
+  512 /*!< 设置此位时，表示锁仅保持在记录之前的间隙上; 例如，间隙上的 x-lock 不允许修改设置位的记录; 从记录的索引链中删除记录时，将创建此类型的锁
+      when this bit is set, it means that the   \
       lock holds only on the gap before the record;  \
       for instance, an x-lock on the gap does not    \
       give permission to modify the record on which  \
       the bit is set; locks of this type are created \
-      when records are removed from the index chain  \
-      of records */
+      when records are removed from the index chain of records */
 #define LOCK_REC_NOT_GAP                            \
-  1024 /*!< this bit means that the lock is only on \
+  1024 /*!< 此位表示锁仅在索引记录上，并且不会阻止插入索引记录之前的间隙; 这用于我们检索具有唯一键的记录的情况，
+            并且当用户设置了 读已提交 隔离级别时，也用于锁定普通选择（不是更新或删除的一部分）
+       this bit means that the lock is only on \
        the index record and does NOT block inserts  \
        to the gap before the index record; this is  \
        used in the case when we retrieve a record   \
-       with a unique key, and is also used in       \
-       locking plain SELECTs (not part of UPDATE    \
-       or DELETE) when the user has set the READ    \
-       COMMITTED isolation level */
+       with a unique key, and is also used in locking plain SELECTs (not part of UPDATE    \
+       or DELETE) when the user has set the READ COMMITTED isolation level */
 #define LOCK_INSERT_INTENTION                                             \
   2048                       /*!< this bit is set when we place a waiting \
                           gap type record lock request in order to let    \
@@ -742,20 +740,16 @@ struct lock_op_t {
 typedef ib_mutex_t LockMutex;
 
 /** The lock system struct */
-struct lock_sys_t {
+struct lock_sys_t {                   // 锁系统结构
   char pad1[INNOBASE_CACHE_LINE_SIZE];
   /*!< padding to prevent other
   memory update hotspots from
   residing on the same memory
   cache line */
-  LockMutex mutex;              /*!< Mutex protecting the
-                                locks */
-  hash_table_t *rec_hash;       /*!< hash table of the record
-                                locks */
-  hash_table_t *prdt_hash;      /*!< hash table of the predicate
-                                lock */
-  hash_table_t *prdt_page_hash; /*!< hash table of the page
-                                lock */
+  LockMutex mutex;              /*!< Mutex protecting the locks */
+  hash_table_t *rec_hash;       /*!< 记录锁的哈希表；hash table of the record locks */
+  hash_table_t *prdt_hash;      /*!< hash table of the predicate lock */
+  hash_table_t *prdt_page_hash; /*!< hash table of the page lock */
 
   char pad2[INNOBASE_CACHE_LINE_SIZE]; /*!< Padding */
   LockMutex wait_mutex;                /*!< Mutex protecting the

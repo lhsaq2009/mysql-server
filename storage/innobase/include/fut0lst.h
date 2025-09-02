@@ -49,7 +49,7 @@ typedef byte flst_node_t;
 constexpr ulint FLST_BASE_NODE_SIZE = 4 + 2 * FIL_ADDR_SIZE;
 
 /* The physical size of a list node in bytes */
-constexpr ulint FLST_NODE_SIZE = 2 * FIL_ADDR_SIZE;
+constexpr ulint FLST_NODE_SIZE = 2 * FIL_ADDR_SIZE;       // FIL_ADDR_SIZE = 6;
 
 /** Initializes a list base node.
 @param[in]	base	pointer to base node

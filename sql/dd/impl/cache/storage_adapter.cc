@@ -144,7 +144,7 @@ void Storage_adapter::core_update(const dd::Tablespace *new_tsp) {
   m_core_registry.put(element);
 }
 
-// Get a dictionary object from persistent storage.
+// 从持久存储中获取字典对象；Get a dictionary object from persistent storage.
 template <typename K, typename T>
 bool Storage_adapter::get(THD *thd, const K &key, enum_tx_isolation isolation,
                           bool bypass_core_registry, const T **object) {
@@ -165,8 +165,8 @@ bool Storage_adapter::get(THD *thd, const K &key, enum_tx_isolation isolation,
   // Start a DD transaction to get the object.
   Transaction_ro trx(thd, isolation);
   trx.otx.register_tables<T>();
-
-  if (trx.otx.open_tables()) {
+  DBUG_PRINT("haisen", ("✅ trx.otx.open_tables()"));
+  if (trx.otx.open_tables()) {                // =>> W&7EHRdB
     DBUG_ASSERT(thd->is_system_thread() || thd->killed || thd->is_error());
     return true;
   }

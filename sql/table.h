@@ -646,8 +646,8 @@ typedef struct Table_share_foreign_key_parent_info {
 } TABLE_SHARE_FOREIGN_KEY_PARENT_INFO;
 
 /**
-  This structure is shared between different table objects. There is one
-  instance of table share per one table in the database.
+  此结构在不同的表对象之间共享。数据库中每个表都有一个表共享实例
+  This structure is shared between different table objects. There is one instance of table share per one table in the database.
 */
 
 struct TABLE_SHARE {
@@ -747,7 +747,7 @@ struct TABLE_SHARE {
   ha_rows min_rows{0}, max_rows{0}; /* create information */
   ulong avg_row_length{0};          /* create information */
   ulong mysql_version{0};           /* 0 if .frm is created before 5.0 */
-  ulong reclength{0};               /* Recordlength */
+  ulong reclength{0};               /* Record length */
   ulong stored_rec_length{0};       /* Stored record length
                                     (no generated-only generated fields) */
 
@@ -1331,7 +1331,7 @@ struct TABLE {
   /// Count of hidden fields, if internal temporary table; 0 otherwise.
   uint hidden_field_count{0};
 
-  uchar *record[2]{nullptr, nullptr}; /* Pointer to records */
+  uchar *record[2]{nullptr, nullptr}; /* 指向记录的指针；Pointer to records */
   uchar *write_row_record{nullptr};   /* Used as optimisation in
                                  THD::write_row */
   uchar *insert_values{nullptr};      /* used by INSERT ... UPDATE */
@@ -1494,7 +1494,7 @@ struct TABLE {
   */
   bool nullable{false};
 
-  uint8 m_status{0}; /* What's in record[0] */
+  uint8 m_status{0}; /* What's in record[0]；若填充了记录内容，则 0，否则 2 */
  public:
   /*
     If true, the current table row is considered to have all columns set to
@@ -1628,7 +1628,7 @@ struct TABLE {
   */
   Sort_result unique_result;
   partition_info *part_info{nullptr}; /* Partition related information */
-  /* If true, all partitions have been pruned away */
+  /* 如果为 true，则所有分区都已修剪掉；If true, all partitions have been pruned away */
   bool all_partitions_pruned_away{false};
   MDL_ticket *mdl_ticket{nullptr};
 
@@ -3395,7 +3395,7 @@ struct TABLE_LIST {
       Associate a table share only if the the table exists.
       Also upgrade metadata lock to exclusive if table doesn't exist.
     */
-    OPEN_FOR_CREATE,
+    OPEN_FOR_CREATE,        // 新建表
     /* Don't associate a table share. */
     OPEN_STUB
   } open_strategy{OPEN_NORMAL};

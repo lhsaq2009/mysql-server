@@ -58,7 +58,7 @@ void mach_write_to_2(byte *b, ulint n) {
   b[1] = (byte)(n);
 }
 
-/** The following function is used to fetch data from one byte.
+/** 以下函数用于从一个字节获取数据；The following function is used to fetch data from one byte.
 @param[in]	b	pointer to a byte to read
 @return ulint integer, >= 0, < 256 */
 UNIV_INLINE

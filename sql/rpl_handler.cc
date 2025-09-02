@@ -1022,7 +1022,7 @@ int unregister_binlog_relay_io_observer(Binlog_relay_IO_observer *observer,
 int launch_hook_trans_begin(THD *thd, TABLE_LIST *all_tables) {
   DBUG_TRACE;
   LEX *lex = thd->lex;
-  enum_sql_command sql_command = lex->sql_command;
+  enum_sql_command sql_command = lex->sql_command;    // TODO：SQL 类型，要分流 ？
   // by default commands are put on hold
   bool hold_command = true;
   int ret = 0;

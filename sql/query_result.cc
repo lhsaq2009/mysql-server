@@ -85,18 +85,18 @@ void Query_result_send::abort_result_set(THD *thd) {
 
 /* Send data to client. Returns 0 if ok */
 
-bool Query_result_send::send_data(THD *thd, List<Item> &items) {
+bool Query_result_send::send_data(THD *thd, List<Item> &items) {    // =>>
   Protocol *protocol = thd->get_protocol();
   DBUG_TRACE;
 
   protocol->start_row();
-  if (thd->send_result_set_row(&items)) {
+  if (thd->send_result_set_row(&items)) {     // =>> 将数据写入到 send_buffer 中
     protocol->abort_row();
     return true;
   }
 
-  thd->inc_sent_row_count(1);
-  return protocol->end_row();
+  thd->inc_sent_row_count(1);                    // 当前发送行数 +1
+  return protocol->end_row();                          // TODO：??? 结束当前行的发送，结论，MySQL 的查询结果是一行一行发送的
 }
 
 bool Query_result_send::send_eof(THD *thd) {

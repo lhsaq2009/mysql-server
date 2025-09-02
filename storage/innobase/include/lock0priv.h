@@ -49,11 +49,9 @@ those functions in lock/ */
 
 /** A table lock */
 struct lock_table_t {
-  dict_table_t *table; /*!< database table in dictionary
-                       cache */
+  dict_table_t *table;     /*!< 数据库表结构；database table in dictionary cache */
   UT_LIST_NODE_T(lock_t)
-  locks; /*!< list of locks on the same
-         table */
+  locks;                   /*!< 数据库同一表上的锁；list of locks on the same table */
   /** Print the table lock into the given output stream
   @param[in,out]	out	the output stream
   @return the given output stream. */
@@ -79,14 +77,14 @@ inline std::ostream &operator<<(std::ostream &out, const lock_table_t &lock) {
 
 /** Record lock for a page */
 struct lock_rec_t {
-  space_id_t space;  /*!< space id */
-  page_no_t page_no; /*!< page number */
-  uint32_t n_bits;   /*!< number of bits in the lock
-                     bitmap; NOTE: the lock bitmap is
-                     placed immediately after the
-                     lock struct */
+  space_id_t space;  /*!< 表空间 table space 的 ID */
+  page_no_t page_no; /*!< 对应的 page 页号 */
+  uint32_t n_bits;   /*!< 位图结构，用于确定 page 中记录行有锁的数据位数；
+                          number of bits in the lock bitmap;
+                          NOTE: the lock bitmap is placed immediately after the lock struct
+                     */
 
-  /** Print the record lock into the given output stream
+  /** 将记录锁打印到给定的输出流中；Print the record lock into the given output stream
   @param[in,out]	out	the output stream
   @return the given output stream. */
   std::ostream &print(std::ostream &out) const;
@@ -122,26 +120,23 @@ bool lock_mode_is_next_key_lock(ulint mode) {
 }
 
 /** Lock struct; protected by lock_sys->mutex */
-struct lock_t {
+struct lock_t {                                     // 锁对象结构
   /** transaction owning the lock */
-  trx_t *trx;
+  trx_t *trx;                                       // 拥有该锁的事务
 
   /** list of the locks of the transaction */
-  UT_LIST_NODE_T(lock_t) trx_locks;
+  UT_LIST_NODE_T(lock_t) trx_locks;                 // 该事务持有的锁链表
 
   /** Index for a record lock */
-  dict_index_t *index;
+  dict_index_t *index;                              // 记录锁索引
 
   /** Hash chain node for a record lock. The link node in a singly
   linked list, used by the hash table. */
-  lock_t *hash;
+  lock_t *hash;                                     // 记录锁 hash 链节点
 
   union {
-    /** Table lock */
-    lock_table_t tab_lock;
-
-    /** Record lock */
-    lock_rec_t rec_lock;
+    lock_table_t tab_lock;                          // 表锁：Table lock
+    lock_rec_t rec_lock;                            // 行锁：Record lock
   };
 
 #ifdef HAVE_PSI_THREAD_INTERFACE
@@ -1101,7 +1096,7 @@ parallel modifications turns out wrong.
 @return lock or NULL */
 UNIV_INLINE
 bool lock_table_has(const trx_t *trx, const dict_table_t *table,
-                    enum lock_mode mode);
+                    enum lock_mode mode);     // innodb update ... where .. => mode = LOCK_IX
 
 /** Handles writing the information about found deadlock to the log files
 and caches it for future lock_latest_err_file() calls (for example used by

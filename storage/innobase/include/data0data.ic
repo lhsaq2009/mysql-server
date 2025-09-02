@@ -363,7 +363,7 @@ UNIV_INLINE void dtuple_set_n_fields_cmp(dtuple_t *tuple, ulint n_fields_cmp) {
   tuple->n_fields_cmp = n_fields_cmp;
 }
 
-/** Gets number of fields in a data tuple.
+/** 获取数据元组中的字段数；Gets number of fields in a data tuple.
  @return number of fields */
 UNIV_INLINE
 ulint dtuple_get_n_fields(const dtuple_t *tuple) /*!< in: tuple */

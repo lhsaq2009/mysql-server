@@ -386,7 +386,7 @@ bool trans_commit_implicit(THD *thd, bool ignore_global_read_lock) {
 }
 
 /**
-  Rollback the current transaction, canceling its changes.
+  回滚当前事务，取消其更改；Rollback the current transaction, canceling its changes.
 
   @param thd     Current thread
 

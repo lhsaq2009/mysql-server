@@ -3812,7 +3812,7 @@ longlong Field_long::val_int() const {
   else
 #endif
     longget(&j, ptr);
-  return unsigned_flag ? (longlong)(uint32)j : (longlong)j;
+  return unsigned_flag ? (longlong)(uint32)j : (longlong)j;     // =>> 终于看到字段的值了
 }
 
 String *Field_long::val_str(String *val_buffer,

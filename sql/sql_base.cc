@@ -1674,7 +1674,7 @@ void close_thread_tables(THD *thd) {
       binlog_query()) or when preparing a pending event.
      */
     (void)thd->binlog_flush_pending_rows_event(true);
-    mysql_unlock_tables(thd, thd->lock);
+    mysql_unlock_tables(thd, thd->lock);      // =>>
     thd->lock = 0;
   }
 
@@ -2987,7 +2987,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx) {
             pre-acquiring metadata locks at the beggining of
             open_tables() call.
     */
-    if (table_list->mdl_request.is_write_lock_request() &&
+    if (table_list->mdl_request.is_write_lock_request() &&    // type >= MDL_SHARED_WRITE && type != MDL_SHARED_READ_ONLY
         !(flags &
           (MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK | MYSQL_OPEN_FORCE_SHARED_MDL |
            MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
@@ -4830,9 +4830,9 @@ static bool open_and_process_routine(
 }
 
 /**
-  Handle table list element by obtaining metadata lock, opening table or view
-  and, if prelocking strategy prescribes so, extending the prelocking set with
-  tables and routines used by it.
+  通过获取元数据锁、打开表 或 视图来处理表列表元素，如果预锁策略规定如此，则使用它使用的表和例程扩展预锁集
+  Handle table list element by obtaining metadata lock, opening table or view and,
+  if prelocking strategy prescribes so, extending the prelocking set with tables and routines used by it.
 
   @param[in]     thd                  Thread context.
   @param[in]     lex                  LEX structure for statement.
@@ -4899,8 +4899,8 @@ static bool open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *const tables,
                         tables));  // psergey: invalid read of size 1 here
   (*counter)++;
 
-  /* Not a placeholder: must be a base/temporary table or a view. Let us open
-   * it. */
+  /* 不是占位符：必须是 基表/临时表 或 视图。让我们打开它
+   * Not a placeholder: must be a base/temporary table or a view. Let us open it. */
 
   if (tables->table) {
     /*
@@ -4984,8 +4984,9 @@ static bool open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *const tables,
       */
       error = open_temporary_table(thd, tables);
     }
-
-    if (!error && !tables->table) error = open_table(thd, tables, ot_ctx);
+    DBUG_PRINT("haisen", ("✅ open_and_process_table(..) -> open_table(..)，db = %s，tables[0] = %s",
+            tables->db, tables->table_name));
+    if (!error && !tables->table) error = open_table(thd, tables, ot_ctx);      // =>>
   }
 
   if (error) {
@@ -5160,8 +5161,8 @@ static inline bool is_temporary_table_being_opened(const TABLE_LIST *table) {
 }
 
 /**
-  Acquire IX metadata locks on tablespace names used by LOCK
-  TABLES or by a DDL statement.
+ * 获取 LOCK TABLES 或 DDL 语句，使用的表空间名称上的 IX 元数据锁
+  Acquire IX metadata locks on tablespace names used by LOCK TABLES or by a DDL statement.
 
   @note That the tablespace MDL locks are taken only after locks
   on tables are acquired. So it is recommended to maintain this
@@ -5201,12 +5202,14 @@ bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
       fill_partition_tablespace_names(thd->work_part_info, &tablespace_set))
     return true;
 
+  // 第一步是遍历表，确保我们已经锁定了名称，然后从数据字典中获取表空间名称
   // The first step is to loop over the tables, make sure we have
-  // locked the names, and then get hold of the tablespace names from
-  // the data dictionary.
-  TABLE_LIST *table;
-  for (table = tables_start; table && table != tables_end;
-       table = table->next_global) {
+  // locked the names, and then get hold of the tablespace names from the data dictionary.
+  TABLE_LIST *table;      // TODO 2023-05-30：添加输出：table->db, table->table_name
+  for (table = tables_start; table && table != tables_end; table = table->next_global) {
+//    DBUG_PRINT("haisen", ("✅ Phase 4: flags = %x, get_and_lock_tablespace_names(..) -> for { db = %s, t_name = %s }",
+//            flags, table->db, table->table_name)
+//    );
     // Consider only non-temporary tables. The if clauses below have the
     // following meaning:
     //
@@ -5240,8 +5243,8 @@ bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
         tablespace_set.insert(table->target_tablespace_name.str);
       }
 
-      // No need to try this for tables to be created since they are not
-      // yet present in the dictionary.
+      // 无需为要创建的表尝试此操作，因为它们尚未存在于字典中
+      // No need to try this for tables to be created since they are not yet present in the dictionary.
       if (table->open_strategy != TABLE_LIST::OPEN_FOR_CREATE) {
         // Assert that we have an MDL lock on the table name. Needed to read
         // the dictionary safely.
@@ -5249,11 +5252,11 @@ bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
             MDL_key::TABLE, table->db, table->table_name, MDL_SHARED));
 
         /*
-          Add names of tablespaces used by table or by its
-          partitions/subpartitions. Lookup data dictionary to get
-          the information.
+          添加表或其分区/子分区使用的表空间名称。查找数据字典以获取信息
+          Add names of tablespaces used by table or by its partitions/subpartitions.
+          Lookup data dictionary to get the information.
         */
-        if (dd::fill_table_and_parts_tablespace_names(
+        if (dd::fill_table_and_parts_tablespace_names(              // =>>
                 thd, table->db, table->table_name, &tablespace_set))
           return true;
       }
@@ -5261,8 +5264,8 @@ bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
   }  // End of for(;;)
 
   /*
-    After we have identified the tablespace names, we iterate
-    over the names and acquire IX locks on each of them.
+    确定表空间名称后，我们迭代这些名称并获取每个名称上的 IX 锁
+    After we have identified the tablespace names, we iterate over the names and acquire IX locks on each of them.
   */
   if (lock_tablespace_names(thd, &tablespace_set, lock_wait_timeout))
     return true;
@@ -5270,14 +5273,13 @@ bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
   return false;
 }
 
-/**
+/** ✅ 通过 LOCK TABLES 或 DDL 语句，获取表上的 “强” ( SRO、SNW、SNRW ) 元数据锁
   Acquire "strong" (SRO, SNW, SNRW) metadata locks on tables used by
   LOCK TABLES or by a DDL statement.
-
+    ✅ 获取在 CREATE TABLE 语句中创建的表上的锁 “S”
   Acquire lock "S" on table being created in CREATE TABLE statement.
 
-  @note  Under LOCK TABLES, we can't take new locks, so use
-         open_tables_check_upgradable_mdl() instead.
+  @note  Under LOCK TABLES, we can't take new locks, so use open_tables_check_upgradable_mdl() instead.
 
   @param thd               Thread context.
   @param tables_start      Start of list of tables on which locks
@@ -5296,7 +5298,7 @@ bool get_and_lock_tablespace_names(THD *thd, TABLE_LIST *tables_start,
   @retval true   Failure (e.g. connection was killed)
 */
 
-bool lock_table_names(THD *thd, TABLE_LIST *tables_start,
+bool lock_table_names(THD *thd, TABLE_LIST *tables_start,           // 获取表的元数据锁
                       TABLE_LIST *tables_end, ulong lock_wait_timeout,
                       uint flags,
                       Prealloced_array<MDL_request *, 1> *schema_reqs) {
@@ -5322,14 +5324,14 @@ bool lock_table_names(THD *thd, TABLE_LIST *tables_start,
   DBUG_ASSERT(!thd->locked_tables_mode ||
               thd->lex->sql_command == SQLCOM_RENAME_TABLE);
 
-  // Phase 1: Iterate over tables, collect set of unique schema names, and
-  //          construct a list of requests for table MDL locks.
+  // Phase 1: TODO 2023-05-28：循环访问表，收集一组唯一的架构名称，并构造表 MDL 锁的请求列表
+  // Iterate over tables, collect set of unique schema names, and construct a list of requests for table MDL locks.
   for (table = tables_start; table && table != tables_end;
        table = table->next_global) {
     if (is_temporary_table_being_opened(table)) {
       continue;
     }
-
+    // type >= MDL_SHARED_UPGRADABLE;
     if (!table->mdl_request.is_ddl_or_lock_tables_lock_request() &&
         table->open_strategy != TABLE_LIST::OPEN_FOR_CREATE) {
       continue;
@@ -5356,41 +5358,39 @@ bool lock_table_names(THD *thd, TABLE_LIST *tables_start,
         my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
         return true;
       }
-
+      // 在要打开的表上获取“强”（SNW、SNRW、X）元数据锁时，不会获取全局、表空间范围和架构范围 IX 锁
       if (!(flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK)) {
         schema_set.insert(table);
       }
       need_global_read_lock_protection = true;
     }
-
+    // ( SNRW ) MDL_SHARED_NO_READ_WRITE：LOCK TABLES...WRITE
     mdl_requests.push_front(&table->mdl_request);
   }
 
-  // Phase 2: Iterate over the schema set, add an IX lock for each
-  //          schema name.
+  // Phase 2: TODO 2023-05-28：循环访问 schema Set，为每个 schema name 添加一个 IX 锁
+  // Iterate over the schema set, add an IX lock for each schema name.
   if (!(flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) && !mdl_requests.is_empty()) {
     /*
-      Scoped locks: Take intention exclusive locks on all involved
-      schemas.
+      作用域锁：对所有涉及的架构采用 意向独占锁
+      Scoped locks: Take intention exclusive locks on all involved schemas.
     */
     for (const TABLE_LIST *table : schema_set) {
       MDL_request *schema_request = new (thd->mem_root) MDL_request;
       if (schema_request == NULL) return true;
-      MDL_REQUEST_INIT(schema_request, MDL_key::SCHEMA, table->db, "",
-                       MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
-      mdl_requests.push_front(schema_request);
+      MDL_REQUEST_INIT(schema_request, MDL_key::SCHEMA, table->db, "", MDL_INTENTION_EXCLUSIVE, MDL_TRANSACTION);
+      mdl_requests.push_front(schema_request);      // type = {enum_mdl_type} MDL_INTENTION_EXCLUSIVE
       if (schema_reqs) schema_reqs->push_back(schema_request);
     }
 
     if (need_global_read_lock_protection) {
       /*
+        通过获取具有语句持续时间的全局意图独占锁，保护此语句免受并发全局读锁定的影响
         Protect this statement against concurrent global read lock
-        by acquiring global intention exclusive lock with statement
-        duration.
+        by acquiring global intention exclusive lock with statement duration.
       */
       if (thd->global_read_lock.can_acquire_protection()) return true;
-      MDL_REQUEST_INIT(&global_request, MDL_key::GLOBAL, "", "",
-                       MDL_INTENTION_EXCLUSIVE, MDL_STATEMENT);
+      MDL_REQUEST_INIT(&global_request, MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE, MDL_STATEMENT);
       mdl_requests.push_front(&global_request);
     }
   }
@@ -5401,18 +5401,22 @@ bool lock_table_names(THD *thd, TABLE_LIST *tables_start,
     mdl_requests.push_front(&backup_lock_request);
   }
 
-  // Phase 3: Acquire the locks which have been requested so far.
-  if (thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))
+  // Phase 3: MDL -> 遍历请求列表，去获取 MDL 锁；     Acquire the locks which have been requested so far.
+  DBUG_PRINT("haisen", ("✅ Phase 3: flags = %x, thd->mdl_context.acquire_locks(..)", flags));
+  if (thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))   // =>> 涉及我们的表的 MDL
     return true;
 
   /*
-    Phase 4: Lock tablespace names. This cannot be done as part
-    of the previous phases, because we need to read the
-    dictionary to get hold of the tablespace name, and in order
-    to do this, we must have acquired a lock on the table.
-  */
-  return get_and_lock_tablespace_names(thd, tables_start, tables_end,
-                                       lock_wait_timeout, flags);
+  // Phase 4: MDL -> 获取 LOCK TABLES 或 DDL 语句，对应「 表空间 」的 MDL IX 锁，( 无法在 Phase 3 获取 )
+    这不能作为前面阶段的一部分来完成，因为我们需要读取字典，来获取表空间名称，为了做到这一点，我们必须在表上获得一个锁
+
+    Lock tablespace names.
+    This cannot be done as part of the previous phases,
+    because we need to read the dictionary to get hold of the tablespace name,
+    and in order to do this, we must have acquired a lock on the table.
+  */  // 对目标表所在表空间加 MDL IX 锁
+  DBUG_PRINT("haisen", ("✅ Phase 4: flags = %x, get_and_lock_tablespace_names(..)", flags));
+  return get_and_lock_tablespace_names(thd, tables_start, tables_end, lock_wait_timeout, flags);
 }
 
 /**
@@ -5507,15 +5511,15 @@ static bool acquire_backup_lock_in_lock_tables_mode(THD *thd,
 }
 
 /**
-  Open all tables in list
+  打开列表中的所有表；Open all tables in list
 
   @param[in]     thd      Thread context.
   @param[in,out] start    List of tables to be open (it can be adjusted for
                           statement that uses tables only implicitly, e.g.
                           for "SELECT f1()").
   @param[out]    counter  Number of tables which were open.
-  @param[in]     flags    Bitmap of flags to modify how the tables will be
-                          open, see open_table() description for details.
+  @param[in]     flags    修改表打开方式的标志位图，详情请参阅 open_table() 描述
+                          Bitmap of flags to modify how the tables will be open, see open_table() description for details.
   @param[in]     prelocking_strategy  Strategy which specifies how prelocking
                                       algorithm should work for this statement.
 
@@ -5527,15 +5531,15 @@ static bool acquire_backup_lock_in_lock_tables_mode(THD *thd,
     requires foreign key checks will be marked as requiring prelocking.
     Prelocked mode will be enabled for such query during lock_tables() call.
 
+    如果 我们为其打开表的 查询已经标记为需要「 预锁定 」，则它不会执行此类预缓存，而只会重用已构建的表列表
     If query for which we are opening tables is already marked as requiring
-    prelocking it won't do such precaching and will simply reuse table list
-    which is already built.
+    prelocking it won't do such precaching and will simply reuse table list which is already built.
 
   @retval  false  Success.
   @retval  true   Error, reported.
 */
 
-bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,
+bool open_tables(THD *thd, TABLE_LIST **start, uint *counter, uint flags,       // 77788
                  Prelocking_strategy *prelocking_strategy) {
   /*
     We use pointers to "next_global" member in the last processed TABLE_LIST
@@ -5587,9 +5591,11 @@ restart:
     lock will be reused (thanks to the fact that in recursive case
     metadata locks are acquired without waiting).
   */
+  // DBUG_PRINT("haisen", ("✅ open_tables(..)，flags = %x", flags));
+
   if (!(flags & (MYSQL_OPEN_HAS_MDL_LOCK | MYSQL_OPEN_FORCE_SHARED_MDL |
                  MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))) {
-    if (thd->locked_tables_mode) {
+    if (thd->locked_tables_mode) {                            // LTM_NONE，LOCK TABLES test.t3 WRITE;
       /*
         Under LOCK TABLES, we can't acquire new locks, so we instead
         need to check if appropriate locks were pre-acquired.
@@ -5602,9 +5608,10 @@ restart:
       }
     } else {
       TABLE_LIST *table;
+      DBUG_PRINT("haisen", ("✅ open_tables(..)，flags = %x，lock_table_names(...)", flags));
       if (lock_table_names(thd, *start, thd->lex->first_not_own_table(),
                            ot_ctx.get_timeout(), flags)) {
-        error = true;
+        error = true;   // open_tables(..)
         goto err;
       }
       for (table = *start; table && table != thd->lex->first_not_own_table();
@@ -5620,14 +5627,13 @@ restart:
     Perform steps of prelocking algorithm until there are unprocessed
     elements in prelocking list/set.
   */
-  while (*table_to_open ||
-         (thd->locked_tables_mode <= LTM_LOCK_TABLES && *sroutine_to_open)) {
+  while (*table_to_open || (thd->locked_tables_mode <= LTM_LOCK_TABLES && *sroutine_to_open)) {
     /*
-      For every table in the list of tables to open, try to find or open
-      a table.
+      对于要打开的 tables 中的每个表，请尝试查找或打开一个表
+      For every table in the list of tables to open, try to find or open a table.
     */
-    for (tables = *table_to_open; tables;
-         table_to_open = &tables->next_global, tables = tables->next_global) {
+    for (tables = *table_to_open; tables; table_to_open = &tables->next_global, tables = tables->next_global) {
+      DBUG_PRINT("haisen", ("✅ open_tables(..)，flags = %x，open_and_process_table(...)", flags));
       error = open_and_process_table(thd, thd->lex, tables, counter,
                                      prelocking_strategy, has_prelocking_list,
                                      &ot_ctx);
@@ -5721,8 +5727,7 @@ restart:
 
         if (error) {
           if (ot_ctx.can_recover_from_failed_open()) {
-            close_tables_for_reopen(thd, start,
-                                    ot_ctx.start_of_statement_svp());
+            close_tables_for_reopen(thd, start, ot_ctx.start_of_statement_svp());
             if (ot_ctx.recover_from_failed_open()) goto err;
 
             /* Re-open temporary tables after close_tables_for_reopen(). */
@@ -5746,8 +5751,7 @@ restart:
   }
 
   /* Accessing data in XA_IDLE or XA_PREPARED is not allowed. */
-  if (*start &&
-      thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
+  if (*start && thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(true))
     return true;
 
   /*
@@ -6483,8 +6487,7 @@ bool open_tables_for_query(THD *thd, TABLE_LIST *tables, uint flags) {
 
   DBUG_ASSERT(tables == thd->lex->query_tables);
 
-  if (open_tables(thd, &tables, &thd->lex->table_count, flags,
-                  &prelocking_strategy))
+  if (open_tables(thd, &tables, &thd->lex->table_count, flags, &prelocking_strategy))
     goto end;
 
   if (open_secondary_engine_tables(thd, flags)) goto end;
@@ -6539,7 +6542,7 @@ static void mark_real_tables_as_free_for_reuse(TABLE_LIST *table_list) {
 }
 
 /**
-  Lock all tables in a list.
+  锁定列表中的所有表；Lock all tables in a list.
 
   @param  thd           Thread handler
   @param  tables        Tables to lock
@@ -6562,21 +6565,14 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count, uint flags) {
   TABLE_LIST *table;
 
   DBUG_TRACE;
-  /*
-    We can't meet statement requiring prelocking if we already
-    in prelocked mode.
-  */
-  DBUG_ASSERT(thd->locked_tables_mode <= LTM_LOCK_TABLES ||
-              !thd->lex->requires_prelocking());
+  /* We can't meet statement requiring prelocking if we already in prelocked mode. */
+  DBUG_ASSERT(thd->locked_tables_mode <= LTM_LOCK_TABLES || !thd->lex->requires_prelocking());
 
-  /*
-    lock_tables() should not be called if this statement has
-    already locked its tables.
-  */
+  /* lock_tables() should not be called if this statement has already locked its tables. */
   DBUG_ASSERT(thd->lex->lock_tables_state == Query_tables_list::LTS_NOT_LOCKED);
 
   if (!tables && !thd->lex->requires_prelocking()) {
-    /*
+    /*即使我们没有真正锁定任何表，也会将此语句标记为已锁定其表的语句，因此我们不会为同一语句的相同执行再次调用此函数
       Even though we are not really locking any tables mark this
       statement as one that has locked its tables, so we won't
       call this function second time for the same execution of
@@ -6608,17 +6604,19 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count, uint flags) {
     }
 
     DEBUG_SYNC(thd, "before_lock_tables_takes_lock");
-
-    if (!(thd->lock =
-              mysql_lock_tables(thd, start, (uint)(ptr - start), flags)))
-      return true;
+    // CASE 1：LOCK TABLES ... WRITE;
+    // CASE 2：UPDATE test.innoDB .. where ...
+    // 第一个表的名字：start[0] -> alias
+    // 几个表需要加锁：(uint)(ptr - start)
+    if (!(thd->lock = mysql_lock_tables(thd, start, (uint)(ptr - start), flags)))   // 锁表
+      return true;      // 加锁失败：或终止、或被杀死，或错误
 
     DEBUG_SYNC(thd, "after_lock_tables_takes_lock");
 
     if (thd->lex->requires_prelocking() &&
         thd->lex->sql_command != SQLCOM_LOCK_TABLES) {
       TABLE_LIST *first_not_own = thd->lex->first_not_own_table();
-      /*
+      /* 我们刚刚完成了隐式 LOCK TABLES，现在我们必须先模拟 open_and_lock_tables（） 在它之后。
         We just have done implicit LOCK TABLES, and now we have
         to emulate first open_and_lock_tables() after it.
 
@@ -6648,7 +6646,7 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count, uint flags) {
       DBUG_PRINT("info", ("locked_tables_mode= LTM_PRELOCKED"));
       thd->enter_locked_tables_mode(LTM_PRELOCKED);
     }
-  } else {
+  } else {      // Cwph5Y#t
     /*
       When we implicitly open DD tables used by a IS query in LOCK TABLE mode,
       we do not go through mysql_lock_tables(), which sets lock type to use
@@ -6722,7 +6720,7 @@ bool lock_tables(THD *thd, TABLE_LIST *tables, uint count, uint flags) {
     }
   }
 
-  /*
+  /* 将语句标记为已锁定表。出于目的：Query_tables_list::lock_tables_state ，我们将通过 lock_tables() 传递的任何语句视为此类语句
     Mark the statement as having tables locked. For purposes
     of Query_tables_list::lock_tables_state we treat any
     statement which passes through lock_tables() as such.
@@ -9167,7 +9165,7 @@ static bool check_inserting_record(THD *thd, Field **ptr) {
 }
 
 /**
-  Invoke check constraints defined on the table.
+  调用在表上定义的检查约束；Invoke check constraints defined on the table.
 
   @param  thd                   Thread handle.
   @param  table                 Instance of TABLE.
@@ -9273,8 +9271,8 @@ inline bool call_before_insert_triggers(THD *thd, TABLE *table,
 }
 
 /**
-  Fill fields in list with values from the list of items and invoke
-  before triggers.
+  使用项目列表中的值填充列表中的字段，并在触发器之前调用。
+  Fill fields in list with values from the list of items and invoke before triggers.
 
   @param      thd                                 Thread context.
   @param      optype_info                         COPY_INFO structure used for
@@ -9327,8 +9325,7 @@ bool fill_record_n_invoke_before_triggers(
       evaluated.
     */
     if (optype_info->get_operation_type() == COPY_INFO::UPDATE_OPERATION) {
-      *is_row_changed =
-          (!records_are_comparable(table) || compare_records(table));
+      *is_row_changed = (!records_are_comparable(table) || compare_records(table));
       /*
         Evaluate function defaults for columns with ON UPDATE clause only
         if any other column of the row is updated.

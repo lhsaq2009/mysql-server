@@ -3087,7 +3087,7 @@ dberr_t btr_cur_pessimistic_insert(
 }
 
 /*==================== B-TREE UPDATE =========================*/
-
+// 可以看到 Undo Log 会被添加到 Redo Log 中，用以保证 Undo Log 的安全
 /** For an update, checks the locks and does the undo logging.
  @return DB_SUCCESS, DB_WAIT_LOCK, or error number */
 UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) dberr_t
@@ -3136,13 +3136,13 @@ UNIV_INLINE MY_ATTRIBUTE((warn_unused_result)) dberr_t
 
   /* Append the info about the update in the undo log */
 
-  return (trx_undo_report_row_operation(flags, TRX_UNDO_MODIFY_OP, thr, index,
+  return (trx_undo_report_row_operation(flags, TRX_UNDO_MODIFY_OP, thr, index,    // =>>
                                         NULL, update, cmpl_info, rec, offsets,
                                         roll_ptr));
 }
 
 /** Writes a redo log record of updating a record in-place. */
-void btr_cur_update_in_place_log(
+void btr_cur_update_in_place_log(         // 生成 Redo Log
     ulint flags,         /*!< in: flags */
     const rec_t *rec,    /*!< in: record */
     dict_index_t *index, /*!< in: index of the record */
@@ -3177,8 +3177,7 @@ void btr_cur_update_in_place_log(
   log_ptr++;
 
   if (index->is_clustered()) {
-    log_ptr =
-        row_upd_write_sys_vals_to_log(index, trx_id, roll_ptr, log_ptr, mtr);
+    log_ptr = row_upd_write_sys_vals_to_log(index, trx_id, roll_ptr, log_ptr, mtr);
   } else {
     /* Dummy system fields for a secondary index */
     /* TRX_ID Position */
@@ -3352,7 +3351,7 @@ out_of_space:
  @retval DB_SUCCESS on success
  @retval DB_ZIP_OVERFLOW if there is not enough space left
  on the compressed page (IBUF_BITMAP_FREE was reset outside mtr) */
-dberr_t btr_cur_update_in_place(
+dberr_t btr_cur_update_in_place(    // 更新行记录的核心源码；其实这里才开始处理 Undo Log，data，Redo Log
     ulint flags,         /*!< in: undo logging and locking flags */
     btr_cur_t *cursor,   /*!< in: cursor on the record to update;
                          cursor stays valid and positioned on the
@@ -3381,6 +3380,7 @@ dberr_t btr_cur_update_in_place(
   ulint was_delete_marked;
   ibool is_hashed;
 
+  // 01、通过游标获取记录指针，回滚指针，用于生成 Undo Log 版本链表的，实现事务回滚和 MVCC
   rec = btr_cur_get_rec(cursor);
   index = cursor->index;
   ut_ad(rec_offs_validate(rec, index, offsets));
@@ -3419,7 +3419,8 @@ dberr_t btr_cur_update_in_place(
     rec = btr_cur_get_rec(cursor);
   }
 
-  /* Do lock checking and undo logging */
+  // 02、写 undo log
+  /* 执行锁定检查和撤消日志记录；Do lock checking and undo logging */
   err = btr_cur_upd_lock_and_undo(flags, cursor, offsets, update, cmpl_info,
                                   thr, mtr, &roll_ptr);
   if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
@@ -3430,6 +3431,7 @@ dberr_t btr_cur_update_in_place(
   }
 
   if (!(flags & BTR_KEEP_SYS_FLAG) && !index->table->is_intrinsic()) {
+    // 03、更新 rec 的 trx_id、roll_ptr 属性值
     row_upd_rec_sys_fields(rec, NULL, index, offsets, thr_get_trx(thr),
                            roll_ptr);
   }
@@ -3458,6 +3460,7 @@ dberr_t btr_cur_update_in_place(
     rw_lock_x_lock(btr_get_search_latch(index));
   }
 
+  // 04、将 rec 要更新的属性更新为 update 的新值
   assert_block_ahi_valid(block);
   row_upd_rec_in_place(rec, index, offsets, update, page_zip);
 
@@ -3465,6 +3468,7 @@ dberr_t btr_cur_update_in_place(
     rw_lock_x_unlock(btr_get_search_latch(index));
   }
 
+  // 05、写 redo 1og
   btr_cur_update_in_place_log(flags, rec, index, update, trx_id, roll_ptr, mtr);
 
   if (was_delete_marked &&
@@ -3485,14 +3489,14 @@ func_exit:
     ibuf_update_free_bits_zip(block, mtr);
   }
 
-  return (err);
+  return (err);   //
 }
 
-/** Tries to update a record on a page in an index tree. It is assumed that mtr
- holds an x-latch on the page. The operation does not succeed if there is too
- little space on the page or if the update would result in too empty a page,
- so that tree compression is recommended. We assume here that the ordering
- fields of the record do not change.
+/** 尝试更新索引树中页面上的记录。假设 mtr 在页面上有一个 x 闩锁。如果页面上的空间太小，或者更新会导致页面太空，
+ *  则操作不会成功，因此建议使用树压缩。我们在这里假设记录的排序字段不会更改。
+ * Tries to update a record on a page in an index tree. It is assumed that mtr
+ holds an x-latch on the page. The operation does not succeed if there is too little space on the page or if the update would result in too empty a page,
+ so that tree compression is recommended. We assume here that the ordering fields of the record do not change.
  @return error code, including
  @retval DB_SUCCESS on success
  @retval DB_OVERFLOW if the updated record does not fit
@@ -3573,7 +3577,7 @@ dberr_t btr_cur_optimistic_update(
     externally stored in rec or update, and there is enough space
     on the compressed page to log the update. */
 
-    return (btr_cur_update_in_place(flags, cursor, *offsets, update, cmpl_info,
+    return (btr_cur_update_in_place(flags, cursor, *offsets, update, cmpl_info,   // 就地更新
                                     thr, trx_id, mtr));
   }
 
@@ -3787,7 +3791,7 @@ static void btr_cur_pess_upd_restore_supremum(
   lock_rec_reset_and_inherit_gap_locks(prev_block, block, PAGE_HEAP_NO_SUPREMUM,
                                        page_rec_get_heap_no(rec));
 }
-/** Performs an update of a record on a page of a tree. It is assumed
+/** 对树的某一页上的记录执行更新；Performs an update of a record on a page of a tree. It is assumed
  that mtr holds an x-latch on the tree and on the cursor page. If the
  update is made on the leaf level, to avoid deadlocks, mtr must also
  own x-latches to brothers of page, if those brothers exist. We assume
@@ -3808,7 +3812,7 @@ dberr_t btr_cur_pessimistic_update(
     big_rec and the index tuple */
     big_rec_t **big_rec, /*!< out: big rec vector whose fields have to
                          be stored externally by the caller, or NULL */
-    upd_t *update,       /*!< in/out: update vector; this is allowed to
+    upd_t *update,       /*!< in/out: update vector; this is allowed to       // 存储着 新值 & 旧值
                          also contain trx id and roll ptr fields.
                          Non-updated columns that are moved offpage will
                          be appended to this. */

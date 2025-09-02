@@ -148,7 +148,7 @@ using Global_tables_list = IteratorContainer<Global_tables_iterator>;
       SHOW statements
 */
 
-bool handle_query(THD *thd, LEX *lex, Query_result *result,
+bool handle_query(THD *thd, LEX *lex, Query_result *result,                         /// b96K6S =>> 07、
                   ulonglong added_options, ulonglong removed_options) {
   DBUG_TRACE;
 
@@ -166,7 +166,7 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
   if (thd->lex->set_var_list.elements && resolve_var_assignments(thd, lex))
     goto err;
 
-  if (single_query) {
+  if (single_query) {                                                               /// b96K6S =>> 07-1、phase 1: prepare
     if (unit->prepare_limit(thd, unit->global_parameters()))
       goto err; /* purecov: inspected */
 
@@ -201,9 +201,9 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
   */
   if (lock_tables(thd, lex->query_tables, lex->table_count, 0)) goto err;
 
-  if (unit->optimize(thd, /*materialize_destination=*/nullptr)) goto err;
+  if (unit->optimize(thd, /*materialize_destination=*/nullptr)) goto err;                  /// b96K6S =>> 07-2、phase 2: optimize
 
-  if (lex->is_explain()) {
+  if (lex->is_explain()) {                                                                 /// b96K6S =>> 07-3、phase 3: execute
     if (explain_query(thd, thd, unit)) goto err; /* purecov: inspected */
   } else {
     if (unit->execute(thd)) goto err;
@@ -215,7 +215,7 @@ bool handle_query(THD *thd, LEX *lex, Query_result *result,
   THD_STAGE_INFO(thd, stage_end);
 
   // Do partial cleanup (preserve plans for EXPLAIN).
-  res = unit->cleanup(thd, false);
+  res = unit->cleanup(thd, false);                                                    /// b96K6S =>> 07-3、phase 4: clean
 
   return res;
 
@@ -438,7 +438,7 @@ bool Sql_cmd_dml::prepare(THD *thd) {
     S metadata locks instead of SW locks to be compatible with concurrent
     LOCK TABLES WRITE and global read lock.
   */
-  if (open_tables_for_query(
+  if (open_tables_for_query(                // =>>
           thd, lex->query_tables,
           needs_explicit_preparation() ? MYSQL_OPEN_FORCE_SHARED_MDL : 0)) {
     if (thd->is_error())  // @todo - dictionary code should be fixed
@@ -617,7 +617,7 @@ bool Sql_cmd_select::prepare_inner(THD *thd) {
   @todo make this function also handle SET.
 */
 
-bool Sql_cmd_dml::execute(THD *thd) {
+bool Sql_cmd_dml::execute(THD *thd) {           /// TODO：b96K6S ==> 05-3、bool Sql_cmd_dml::execute(THD *thd) {
   DBUG_TRACE;
 
   lex = thd->lex;
@@ -696,12 +696,13 @@ bool Sql_cmd_dml::execute(THD *thd) {
     partitions. As a consequence, in such a case, prepare stage can rely only
     on metadata about tables used and not data from them.
   */
-  if (!is_empty_query()) {
-    if (lock_tables(thd, lex->query_tables, lex->table_count, 0)) goto err;
+  if (!is_empty_query()) {          // 如果不查询数据，则返回 false
+    if (lock_tables(thd, lex->query_tables, lex->table_count, 0)) goto err;     // 06、表锁 innodb update 没找到加意向锁的地方；
   }
-
-  // Perform statement-specific execution
-  res = execute_inner(thd);
+  // eg1：thd->m_query_string.str = "select * from test.t3 where id = 10086"
+  // eg2：thd->m_query_string.str = "UPDATE test.t3 SET name = '10086_v6' WHERE id = 10086"
+  // Perform statement-specific execution，，，Sql_cmd_dml::execute(THD *) sql_select.cc:705
+  res = execute_inner(thd);         // =>> 执行所有语句，内部获取行锁？？Update ->
 
   // Count the number of statements offloaded to a secondary storage engine.
   if (using_secondary_storage_engine() && lex->unit->is_executed())
@@ -719,7 +720,7 @@ bool Sql_cmd_dml::execute(THD *thd) {
   THD_STAGE_INFO(thd, stage_end);
 
   // Do partial cleanup (preserve plans for EXPLAIN).
-  res = unit->cleanup(thd, false);
+  res = unit->cleanup(thd, false);        // 查询结果清理
   lex->clear_values_map();
   lex->set_secondary_engine_execution_context(nullptr);
 
@@ -728,7 +729,7 @@ bool Sql_cmd_dml::execute(THD *thd) {
 
   thd->save_current_query_costs();
 
-  thd->update_previous_found_rows();
+  thd->update_previous_found_rows();          // 记录当前查询到的行数
 
   DBUG_EXECUTE_IF("use_attachable_trx", thd->end_attachable_transaction(););
 
@@ -884,6 +885,7 @@ static bool optimize_secondary_engine(THD *thd) {
 bool Sql_cmd_dml::execute_inner(THD *thd) {
   SELECT_LEX_UNIT *unit = lex->unit;
 
+  // 优化器对 SQL 进行优化并查询，成功直接返回
   if (unit->optimize(thd, /*materialize_destination=*/nullptr)) return true;
 
   // Calculate the current statement cost. It will be made available in
@@ -893,10 +895,10 @@ bool Sql_cmd_dml::execute_inner(THD *thd) {
   // Perform secondary engine optimizations, if needed.
   if (optimize_secondary_engine(thd)) return true;
 
-  if (lex->is_explain()) {
+  if (lex->is_explain()) {                  // 如果是 explain 语句，则不真正执行，否则执行
     if (explain_query(thd, thd, unit)) return true; /* purecov: inspected */
-  } else {
-    if (unit->execute(thd)) return true;
+  } else {  // eg1：thd->m_query_string.str = "select * from test.t3 where id = 10086"
+    if (unit->execute(thd)) return true;    // =>> Select
   }
 
   return false;
@@ -5124,7 +5126,7 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
 }
 
 /**
-  Find a key to apply single table UPDATE/DELETE by a given ORDER
+  查找要按给定顺序，应用单个表更新/删除的键；Find a key to apply single table UPDATE/DELETE by a given ORDER
 
   @param       order           Linked list of ORDER BY arguments
   @param       tab             Table to find a key
@@ -5148,7 +5150,7 @@ bool test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER_with_src *order,
 uint get_index_for_order(ORDER_with_src *order, QEP_TAB *tab, ha_rows limit,
                          bool *need_sort, bool *reverse) {
   if (tab->quick() &&
-      tab->quick()->unique_key_range()) {  // Single row select (always
+      tab->quick()->unique_key_range()) {  // TODO 2023-05-31：单行选择（始终“有序”）：可以与关键字段 UPDATE 一起使用；Single row select (always
                                            // "ordered"): Ok to use with key
                                            // field UPDATE
     *need_sort = false;

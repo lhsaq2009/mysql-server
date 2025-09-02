@@ -59,7 +59,7 @@ template <typename T>
 bool get_and_store_tablespace_name(THD *thd, const T *obj,
                                    Tablespace_hash_set *tablespace_set) {
   const char *tablespace_name = nullptr;
-  if (get_tablespace_name(thd, obj, &tablespace_name, thd->mem_root)) {
+  if (get_tablespace_name(thd, obj, &tablespace_name, thd->mem_root)) {     // =>>
     return true;
   }
 
@@ -94,7 +94,7 @@ bool fill_table_and_parts_tablespace_names(
     return false;
   }
 
-  // Add the tablespace name used by dd::Table.
+  // 添加 dd::Table 使用的表空间名称；Add the tablespace name used by dd::Table.
   if (get_and_store_tablespace_name(thd, table_obj, tablespace_set)) {
     return true;
   }
@@ -127,10 +127,10 @@ bool fill_table_and_parts_tablespace_names(
       }
     }
   }
-
-  // Add tablespaces used by indexes.
+  // TODO 2023-05-30：输出 idx_obj->m_type，idx_obj->m_tablespace_id
+  // 添加索引使用的表空间；Add tablespaces used by indexes.
   for (const dd::Index *idx_obj : table_obj->indexes())
-    if (get_and_store_tablespace_name(thd, idx_obj, tablespace_set))
+    if (get_and_store_tablespace_name(thd, idx_obj, tablespace_set))    // 😊4-1-1   =>>
       return true;
   // TODO WL#7156: Add tablespaces used by individual columnns.
 
@@ -164,7 +164,7 @@ bool get_tablespace_name(THD *thd, const T *obj, const char **tablespace_name,
     */
     dd::cache::Dictionary_client::Auto_releaser releaser(thd->dd_client());
     dd::Tablespace *tablespace = NULL;
-    if (thd->dd_client()->acquire_uncached(obj->tablespace_id(), &tablespace)) {
+    if (thd->dd_client()->acquire_uncached(obj->tablespace_id(), &tablespace)) {      // =>>
       // acquire() always fails with a error being reported.
       return true;
     }

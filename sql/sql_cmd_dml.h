@@ -29,7 +29,7 @@
 struct LEX;
 class Query_result;
 
-class Sql_cmd_dml : public Sql_cmd {
+class Sql_cmd_dml : public Sql_cmd {              // TODO：b96K6S ==> 05-2-1、
  public:
   /// @return true if data change statement, false if not (SELECT statement)
   virtual bool is_data_change_stmt() const { return true; }

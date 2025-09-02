@@ -52,7 +52,7 @@ void Open_dictionary_tables_ctx::add_table(const String_type &name) {
     m_tables[name] = new (std::nothrow) Raw_table(m_lock_type, name);
 }
 
-bool Open_dictionary_tables_ctx::open_tables() {
+bool Open_dictionary_tables_ctx::open_tables() {      //
   DBUG_TRACE;
 
   DBUG_ASSERT(!m_tables.empty());
@@ -103,8 +103,10 @@ bool Open_dictionary_tables_ctx::open_tables() {
        MYSQL_OPEN_IGNORE_FLUSH |
        (m_ignore_global_read_lock ? MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK : 0));
   uint counter;
-
-  if (::open_tables(m_thd, &table_list, &counter, flags)) return true;
+  // TODO 2023-05-30：输出 table_list，"tablespace_files.mysql"；next_global = "tablespaces.mysql"
+  DBUG_PRINT("haisen", ("✅ flags = %x，trx.otx.open_tables() -> open_tables(..) db = %s，table_list[0] = %s",
+          flags, table_list->db, table_list->table_name));
+  if (::open_tables(m_thd, &table_list, &counter, flags)) return true;      // =>> open_tables(..) -> lock_table_names(..) -> Phase 4
 
   /*
     Data-dictionary tables must use storage engine supporting attachable
@@ -122,6 +124,8 @@ bool Open_dictionary_tables_ctx::open_tables() {
   }
 
   // Lock the tables.
+  DBUG_PRINT("haisen", ("✅ flags = %x，trx.otx.open_tables() -> lock_tables(..) db = %s，table_list[0] = %s",
+          flags, table_list->db, table_list->table_name));
   if (lock_tables(m_thd, table_list, counter, flags)) return true;
 
   return false;

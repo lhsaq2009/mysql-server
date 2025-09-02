@@ -39,7 +39,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 #include "read0types.h"
 #include "univ.i"
 
-/** The MVCC read view manager */
+/** The MVCC read view manager：MVCC 读取视图管理器 */
 class MVCC {
  public:
   /** Constructor
@@ -52,16 +52,15 @@ class MVCC {
 
   /**
   Allocate and create a view.
-  @param view		view owned by this class created for the
-                          caller. Must be freed by calling close()
+  @param view		view owned by this class created for the caller. Must be freed by calling close()
   @param trx		transaction creating the view */
-  void view_open(ReadView *&view, trx_t *trx);
+  void view_open(ReadView *&view, trx_t *trx);         /** 创建一个视图 */
 
   /**
   Close a view created by the above function.
   @param view		view allocated by trx_open.
   @param own_mutex	true if caller owns trx_sys_t::mutex */
-  void view_close(ReadView *&view, bool own_mutex);
+  void view_close(ReadView *&view, bool own_mutex);    /** 关闭一个视图 */
 
   /**
   Release a view that is inactive but not closed. Caller must own
@@ -125,7 +124,7 @@ class MVCC {
 
   /** Active and closed views, the closed views will have the
   creator trx id set to TRX_ID_MAX */
-  view_list_t m_views;
+  view_list_t m_views;                  // ReadView 链表，view->prepare(trx->id); 后会加入
 };
 
 #endif /* read0read_h */

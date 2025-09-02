@@ -1259,7 +1259,7 @@ static void row_undo_mod_parse_undo_rec(undo_node_t *node, THD *thd,
   }
 }
 
-/** Undoes a modify operation on a row of a table.
+/** 撤消对表中一行的修改操作；Undoes a modify operation on a row of a table.
  @return DB_SUCCESS or error code */
 dberr_t row_undo_mod(undo_node_t *node, /*!< in: row undo node */
                      que_thr_t *thr)    /*!< in: query thread */
@@ -1277,8 +1277,7 @@ dberr_t row_undo_mod(undo_node_t *node, /*!< in: row undo node */
 
   THD *thd = dd_thd_for_undo(node->trx);
 
-  row_undo_mod_parse_undo_rec(node, thd,
-                              dd_mdl_for_undo(node->trx) ? &mdl : nullptr);
+  row_undo_mod_parse_undo_rec(node, thd, dd_mdl_for_undo(node->trx) ? &mdl : nullptr);
 
   if (node->table == NULL) {
     /* It is already undone, or will be undone by another query

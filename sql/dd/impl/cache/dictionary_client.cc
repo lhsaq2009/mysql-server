@@ -1135,14 +1135,14 @@ bool Dictionary_client::acquire_for_modification(Object_id id, T **object) {
   return error;
 }
 
-// Retrieve an object by its object id without caching it.
+// 按对象 ID 检索对象而不缓存它；Retrieve an object by its object id without caching it.
 template <typename T>
 bool Dictionary_client::acquire_uncached(Object_id id, T **object) {
   const typename T::Id_key key(id);
   const typename T::Cache_partition *stored_object = NULL;
 
-  // Read the uncached dictionary object.
-  bool error = Shared_dictionary_cache::instance()->get_uncached(
+  // 读取未缓存的字典对象；Read the uncached dictionary object.
+  bool error = Shared_dictionary_cache::instance()->get_uncached(                 // =>>
       m_thd, key, ISO_READ_COMMITTED, &stored_object);
   if (!error) {
     // We do not verify proper MDL locking here since the

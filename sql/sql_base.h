@@ -437,7 +437,7 @@ inline bool open_tables(THD *thd, TABLE_LIST **tables, uint *counter,
                         uint flags) {
   DML_prelocking_strategy prelocking_strategy;
 
-  return open_tables(thd, tables, counter, flags, &prelocking_strategy);
+  return open_tables(thd, tables, counter, flags, &prelocking_strategy);      // =>>
 }
 
 inline TABLE *open_n_lock_single_table(THD *thd, TABLE_LIST *table_l,

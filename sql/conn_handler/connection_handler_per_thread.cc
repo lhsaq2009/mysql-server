@@ -242,7 +242,7 @@ static THD *init_new_thd(Channel_info *channel_info) {
 */
 
 extern "C" {
-static void *handle_connection(void *arg) {
+static void *handle_connection(void *arg) {                                 // b96K6S =>> 每个会话 ( Connection ) 建立之后，接受命令的入口：handle_connection
   Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
   Connection_handler_manager *handler_manager =
       Connection_handler_manager::get_instance();
@@ -260,7 +260,7 @@ static void *handle_connection(void *arg) {
   }
 
   for (;;) {
-    THD *thd = init_new_thd(channel_info);
+    THD *thd = init_new_thd(channel_info);                        // 初始化的时候有一系列的 ID 设置
     if (thd == NULL) {
       connection_errors_internal++;
       handler_manager->inc_aborted_connects();
@@ -293,13 +293,13 @@ static void *handle_connection(void *arg) {
     mysql_socket_set_thread_owner(
         thd->get_protocol_classic()->get_vio()->mysql_socket);
 
-    thd_manager->add_thd(thd);
+    thd_manager->add_thd(thd);            // add 的时候需要相关的读取
 
-    if (thd_prepare_connection(thd))
+    if (thd_prepare_connection(thd))      // prepare 中，server_mpvio_initialize，mpvio->thread_id= thd->thread_id()
       handler_manager->inc_aborted_connects();
     else {
       while (thd_connection_alive(thd)) {
-        if (do_command(thd)) break;
+        if (do_command(thd)) break;       // b96K6S ==> 01、
       }
       end_connection(thd);
     }

@@ -905,7 +905,7 @@ static trx_undo_rec_t *trx_roll_pop_top_rec_of_trx_low(
   return (undo_rec_copy);
 }
 
-/** Get next undo log record from redo and noredo rollback segments.
+/** 从 redo 和 noredo 回滚段，获取下一个撤消日志记录；Get next undo log record from redo and noredo rollback segments.
  @return undo log record copied to heap, NULL if none left, or if the
  undo number of the top record would be less than the limit */
 trx_undo_rec_t *trx_roll_pop_top_rec_of_trx(
@@ -954,7 +954,7 @@ static que_t *trx_roll_graph_build(trx_t *trx, bool partial_rollback) {
   return (fork);
 }
 
-/** Starts a rollback operation, creates the UNDO graph that will do the
+/** 启动回滚操作，创建将执行实际撤消操作的 UNDO 图形；Starts a rollback operation, creates the UNDO graph that will do the
  actual undo operation.
 @param[in]	trx	transaction
 @param[in]	roll_limit	 rollback to undo no (for

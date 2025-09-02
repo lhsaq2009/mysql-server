@@ -219,9 +219,8 @@ bool lock_check_trx_id_sanity(
 /** Checks that a record is seen in a consistent read.
  @return true if sees, or false if an earlier version of the record
  should be retrieved */
-bool lock_clust_rec_cons_read_sees(
-    const rec_t *rec,     /*!< in: user record which should be read or
-                          passed over by a read cursor */
+bool lock_clust_rec_cons_read_sees(                                     // MVCC：对查询到的数据记录，对比 trx_id 判断是否可见
+    const rec_t *rec,     /*!< in: user record which should be read or passed over by a read cursor */
     dict_index_t *index,  /*!< in: clustered index */
     const ulint *offsets, /*!< in: rec_get_offsets(rec, index) */
     ReadView *view)       /*!< in: consistent read view */
@@ -230,11 +229,11 @@ bool lock_clust_rec_cons_read_sees(
   ut_ad(page_rec_is_user_rec(rec));
   ut_ad(rec_offs_validate(rec, index, offsets));
 
-  /* Temp-tables are not shared across connections and multiple
+  /* 临时表不会在连接之间共享，来自不同连接的多个事务不能同时对同一个临时表进行操作，因此对临时表的读取始终是一致的读取；Temp-tables are not shared across connections and multiple
   transactions from different connections cannot simultaneously
   operate on same temp-table and so read of temp-table is
   always consistent read. */
-  if (srv_read_only_mode || index->table->is_temporary()) {
+  if (srv_read_only_mode || index->table->is_temporary()) {           // 只读事务 或 临时表是不需要一致性读的判断
     ut_ad(view == 0 || index->table->is_temporary());
     return (true);
   }
@@ -242,9 +241,12 @@ bool lock_clust_rec_cons_read_sees(
   /* NOTE that we call this function while holding the search
   system latch. */
 
-  trx_id_t trx_id = row_get_rec_trx_id(rec, index, offsets);
+  // 获取记录上的 TRX_ID 这里需要解释下，我们一个查询可能满足的记录数有多个。
+  // 那我们每读取一条记录的时候就要根据这条记录上的 TRX_ID 判断这条记录是否可见
 
-  return (view->changes_visible(trx_id, index->table->name));
+  trx_id_t trx_id = row_get_rec_trx_id(rec, index, offsets);          // 获取记录的 trx_id
+
+  return (view->changes_visible(trx_id, index->table->name));         // 真正判断记录的看见性代码逻辑
 }
 
 /** Checks that a non-clustered index record is seen in a consistent read.
@@ -1006,9 +1008,9 @@ lock_t *RecLock::lock_alloc(trx_t *trx, dict_index_t *index, ulint mode,
 
   /* Setup the lock attributes */
 
-  lock->type_mode = LOCK_REC | (mode & ~LOCK_TYPE_MASK);
+  lock->type_mode = LOCK_REC | (mode & ~LOCK_TYPE_MASK);      // 1111 0000
 
-  lock_rec_t &rec_lock = lock->rec_lock;
+  lock_rec_t &rec_lock = lock->rec_lock;      // 行锁
 
   /* Predicate lock always on INFIMUM (0) */
 
@@ -1244,7 +1246,7 @@ static void lock_update_age(lock_t *new_lock, ulint heap_no) {
   }
 }
 
-/** Add the lock to the record lock hash and the transaction's lock list
+/** 将锁  添加到  记录锁哈希 和 事务的锁列表 中；Add the lock to the record lock hash and the transaction's lock list
 @param[in,out] lock	Newly created record lock to add to the rec hash
 @param[in] add_to_hash	If the lock should be added to the hash table */
 void RecLock::lock_add(lock_t *lock, bool add_to_hash) {
@@ -1325,7 +1327,7 @@ lock_t *RecLock::create(trx_t *trx, bool add_to_hash, const lock_prdt_t *prdt) {
   if (prdt != NULL && (m_mode & LOCK_PREDICATE)) {
     lock_prdt_set_prdt(lock, prdt);
   }
-
+  // lock->type_mode = 0x423
   lock_add(lock, add_to_hash);
 
   return (lock);
@@ -3504,15 +3506,13 @@ struct TableLockGetNode {
   }
 };
 
-/** Creates a table lock object and adds it as the last in the lock queue
- of the table. Does NOT check for deadlocks or lock compatibility.
+/** 创建一个表锁对象，并将其添加为表的锁队列中的最后一个对象。不检查死锁或锁兼容性
+ *  Creates a table lock object and adds it as the last in the lock queue of the table. Does NOT check for deadlocks or lock compatibility.
  @return own: new lock object */
 UNIV_INLINE
-lock_t *lock_table_create(dict_table_t *table, /*!< in/out: database table
-                                               in dictionary cache */
-                          ulint type_mode, /*!< in: lock mode possibly ORed with
-                                         LOCK_WAIT */
-                          trx_t *trx)      /*!< in: trx */
+lock_t *lock_table_create(dict_table_t *table, /*!< in/out : database table in dictionary cache */
+                          ulint type_mode,     /*!< in     : lock mode possibly ORed with LOCK_WAIT */
+                          trx_t *trx)          /*!< in     : trx */
 {
   lock_t *lock;
 
@@ -3750,8 +3750,8 @@ static dberr_t lock_table_enqueue_waiting(
   return (DB_LOCK_WAIT);
 }
 
-/** Checks if other transactions have an incompatible mode lock request in
- the lock queue.
+/** 检查其他事务在锁定队列中，是否具有不兼容的模式锁定请求
+ * Checks if other transactions have an incompatible mode lock request in the lock queue.
  @return lock or NULL */
 UNIV_INLINE
 const lock_t *lock_table_other_has_incompatible(
@@ -3792,13 +3792,11 @@ const lock_t *lock_table_other_has_incompatible(
   return (NULL);
 }
 
-/** Locks the specified database table in the mode given. If the lock cannot
+/** 以给定的模式锁定指定的数据库表。如果锁不能立即授予，查询线程将进入等待状态。Locks the specified database table in the mode given. If the lock cannot
  be granted immediately, the query thread is put to wait.
  @return DB_SUCCESS, DB_LOCK_WAIT, or DB_DEADLOCK */
-dberr_t lock_table(ulint flags, /*!< in: if BTR_NO_LOCKING_FLAG bit is set,
-                                does nothing */
-                   dict_table_t *table, /*!< in/out: database table
-                                        in dictionary cache */
+dberr_t lock_table(ulint flags,         /*!< in: if BTR_NO_LOCKING_FLAG bit is set, does nothing */
+                   dict_table_t *table, /*!< in/out: database table in dictionary cache */
                    lock_mode mode,      /*!< in: lock mode */
                    que_thr_t *thr)      /*!< in: query thread */
 {
@@ -3808,8 +3806,9 @@ dberr_t lock_table(ulint flags, /*!< in: if BTR_NO_LOCKING_FLAG bit is set,
 
   ut_ad(table && thr);
 
-  /* Given limited visibility of temp-table we can avoid
-  locking overhead */
+  DBUG_PRINT("haisen", ("✅ InnoDB Table %s using lock_mode = %s", table->name.m_name, lock_mode_string(mode)));
+
+  /* Given limited visibility of temp-table we can avoid locking overhead */
   if ((flags & BTR_NO_LOCKING_FLAG) || srv_read_only_mode ||
       table->is_temporary()) {
     return (DB_SUCCESS);
@@ -3819,7 +3818,8 @@ dberr_t lock_table(ulint flags, /*!< in: if BTR_NO_LOCKING_FLAG bit is set,
 
   trx = thr_get_trx(thr);
 
-  /* Look for equal or stronger locks the same trx already has on the table.
+  /* 寻找该事务，在该表上已经拥有的相同或更强的锁
+   * Look for equal or stronger locks the same trx already has on the table.
   Even though lock_table_has() takes trx->mutex internally, it does not protect
   us at all from "higher-level" races - for instance the state could change in
   theory after we exit lock_table_has() and before we return DB_SUCCESS, or
@@ -3870,23 +3870,24 @@ dberr_t lock_table(ulint flags, /*!< in: if BTR_NO_LOCKING_FLAG bit is set,
 
   lock_mutex_enter();
 
-  /* We have to check if the new lock is compatible with any locks
-  other transactions have in the table lock queue. */
+  /* 检查「 新锁 」是否与其他事务在表锁队列中的任何锁兼容；如果没冲突返回 NULL
+   * We have to check if the new lock is compatible with any locks other transactions have in the table lock queue. */
 
   wait_for = lock_table_other_has_incompatible(trx, LOCK_WAIT, table, mode);
 
   trx_mutex_enter(trx);
 
-  /* Another trx has a request on the table in an incompatible
-  mode: this trx may have to wait */
+  /* 另一个 trx 在表上有一个不兼容的请求
+   * Another trx has a request on the table in an incompatible
+     mode: this trx may have to wait */
 
   if (wait_for != NULL) {
     err = lock_table_enqueue_waiting(mode | flags, table, thr);
     if (err == DB_LOCK_WAIT) {
       lock_create_wait_for_edge(trx, wait_for->trx);
     }
-  } else {
-    lock_table_create(table, mode | flags, trx);
+  } else {    // table->name.m_name = "test/t3"
+    lock_table_create(table, mode | flags, trx);    // 创建表锁对象
 
     ut_a(!flags || mode == LOCK_S || mode == LOCK_X);
 
@@ -4382,8 +4383,7 @@ static void lock_remove_all_on_table_for_trx(
   trx_mutex_exit(trx);
 }
 
-/** Remove any explicit record locks held by recovering transactions on
- the table.
+/** Remove any explicit record locks held by recovering transactions on the table.
  @return number of recovered transactions examined */
 static ulint lock_remove_recovered_trx_record_locks(
     dict_table_t *table) /*!< in: check if there are any locks
@@ -5944,7 +5944,7 @@ dberr_t lock_clust_rec_read_check_and_lock(
     return (DB_SUCCESS);
   }
 
-  heap_no = page_rec_get_heap_no(rec);
+  heap_no = page_rec_get_heap_no(rec);          // 该记录在该页中的排序
 
   if (heap_no != PAGE_HEAP_NO_SUPREMUM) {
     lock_rec_convert_impl_to_expl(block, rec, index, offsets);

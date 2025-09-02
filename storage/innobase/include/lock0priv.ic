@@ -45,7 +45,6 @@ UNIV_INLINE
 uint32_t lock_get_type_low(const lock_t *lock) /*!< in: lock */
 {
   ut_ad(lock);
-
   return (lock->type_mode & LOCK_TYPE_MASK);
 }
 
@@ -122,8 +121,8 @@ lock_t *lock_rec_get_first_on_page_addr(
   return (NULL);
 }
 
-/** Gets the first record lock on a page, where the page is identified by a
- pointer to it.
+/** 获取页面上的第一个记录锁，其中页面由指向它的指针标识；
+    Gets the first record lock on a page, where the page is identified by a pointer to it
  @return	first lock, NULL if none exists */
 UNIV_INLINE
 lock_t *lock_rec_get_first_on_page(
@@ -254,18 +253,17 @@ const lock_t *lock_rec_get_next_on_page_const(
   return (NULL);
 }
 
-/** Gets the mode of a lock.
- @return mode */
+/** 获取锁的模式；Gets the mode of a lock.
+    @return mode */
 UNIV_INLINE
-enum lock_mode lock_get_mode(const lock_t *lock) /*!< in: lock */
+enum lock_mode lock_get_mode(const lock_t *lock) /*!< in: lock */       // 锁模式判断
 {
   ut_ad(lock);
-
   return (static_cast<enum lock_mode>(lock->type_mode & LOCK_MODE_MASK));
 }
 
 /** Calculates if lock mode 1 is compatible with lock mode 2.
- @return nonzero if mode1 compatible with mode2 */
+    @return nonzero if mode1 compatible with mode2 */
 UNIV_INLINE
 ulint lock_mode_compatible(enum lock_mode mode1, /*!< in: lock mode */
                            enum lock_mode mode2) /*!< in: lock mode */
@@ -284,7 +282,7 @@ bool lock_mode_stronger_or_eq(enum lock_mode mode1, enum lock_mode mode2) {
   return (lock_strength_matrix[mode1][mode2] != 0);
 }
 
-/** Gets the wait flag of a lock.
+/** 获取锁的等待标志；Gets the wait flag of a lock.
  @return LOCK_WAIT if waiting, 0 if not */
 UNIV_INLINE
 ulint lock_get_wait(const lock_t *lock) /*!< in: lock */
@@ -295,7 +293,7 @@ ulint lock_get_wait(const lock_t *lock) /*!< in: lock */
 }
 
 /** The back pointer to a waiting lock request in the transaction is set to NULL
- and the wait bit in lock type_mode is reset. */
+    and the wait bit in lock type_mode is reset. */
 UNIV_INLINE
 void lock_reset_lock_and_trx_wait(lock_t *lock) /*!< in/out: record lock */
 {
@@ -361,14 +359,14 @@ bool lock_table_has(const trx_t *trx, const dict_table_t *table,
 
     ut_ad(lock != nullptr);
 
-    lock_mode mode = lock_get_mode(lock);
+    lock_mode mode = lock_get_mode(lock);               // =>> 锁模式判断
 
     ut_ad(trx == lock->trx);
     ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
     ut_ad(lock->tab_lock.table != NULL);
 
     if (table == lock->tab_lock.table &&
-        lock_mode_stronger_or_eq(mode, in_mode)) {
+        lock_mode_stronger_or_eq(mode, in_mode)) {      // TODO 2023-05-26：update where 先获取表意向锁，再获取行锁。
       ut_ad(!lock_get_wait(lock));
 
       trx_mutex_exit(trx);

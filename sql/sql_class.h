@@ -235,7 +235,7 @@ class Query_arena {
   Item *m_item_list;
 
  public:
-  MEM_ROOT *mem_root;  // Pointer to current memroot
+  MEM_ROOT *mem_root;  // 指向当前内存根的指针；Pointer to current memroot
   /*
     The states reflects three different life cycles for three
     different types of statements:
@@ -774,7 +774,7 @@ static inline void my_micro_time_to_timeval(ulonglong micro_time,
   For each client connection we create a separate thread with THD serving as
   a thread/connection descriptor
 */
-
+// 线程描述符：包含处理用户请求时需要的相关数据，每个连接会有一个线程来处理，在一些高层函数中，此数据结构常被当作第一个参数传递。
 class THD : public MDL_context_owner,
             public Query_arena,
             public Open_tables_state {
@@ -847,7 +847,7 @@ class THD : public MDL_context_owner,
   /**
     The query associated with this statement.
   */
-  LEX_CSTRING m_query_string;
+  LEX_CSTRING m_query_string;     // 我们执行的 SQL
   String m_normalized_query;
 
   /**
@@ -1551,7 +1551,7 @@ class THD : public MDL_context_owner,
   /**@}*/
   // NOTE: Ideally those two should be in Protocol,
   // but currently its design doesn't allow that.
-  NET net;        // client connection descriptor
+  NET net;        // client connection descriptor     客户连接描述符
   String packet;  // dynamic buffer for network I/O
  public:
   void set_skip_readonly_check() { skip_readonly_check = true; }
@@ -1913,7 +1913,7 @@ class THD : public MDL_context_owner,
     previous_found_rows is a snapshot of this take at query end making it
     stable throughout the next query, see update_previous_found_rows.
   */
-  ulonglong current_found_rows;
+  ulonglong current_found_rows;       //
 
   /*
     Indicate if the gtid_executed table is being operated implicitly
@@ -3677,7 +3677,7 @@ class THD : public MDL_context_owner,
     be fast, so we inline it.
   */
   void debug_assert_query_locked() const;
-  const LEX_CSTRING &query() const {
+  const LEX_CSTRING &query() const {    // 获取 SQL
 #ifndef DBUG_OFF
     debug_assert_query_locked();
 #endif

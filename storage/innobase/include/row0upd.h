@@ -550,7 +550,7 @@ inline std::ostream &operator<<(std::ostream &out, const upd_field_t &obj) {
 #define upd_fld_set_virtual_col(upd_fld) \
   ((upd_fld)->new_val.type.prtype |= DATA_VIRTUAL)
 
-/* Update vector structure */
+/* 更新向量结构；Update vector structure */
 struct upd_t {
   mem_heap_t *heap;    /*!< heap from which memory allocated */
   ulint info_bits;     /*!< new value of info bits to record;
@@ -685,11 +685,11 @@ struct upd_node_t {
   sym_node_list_t columns; /* symbol table nodes for the columns
                            to retrieve from the table */
   ibool has_clust_rec_x_lock;
-  /* TRUE if the select which retrieves the
+  /* 如果检索要更新的记录的选择已在群集记录上设置了 x-lock，则为 TRUE;请注意，它必须始终至少设置一个 S 锁；TRUE if the select which retrieves the
   records to update already sets an x-lock on
   the clustered record; note that it must always
   set at least an s-lock */
-  ulint cmpl_info; /* information extracted during query
+  ulint cmpl_info; /* 查询编译期间提取的信息;加快执行速度；information extracted during query
                  compilation; speeds up execution:
                  UPD_NODE_NO_ORD_CHANGE and
                  UPD_NODE_NO_SIZE_CHANGE, ORed */
@@ -754,11 +754,11 @@ struct upd_node_t {
 
 /* Compilation info flags: these must fit within 2 bits; see trx0rec.h */
 #define UPD_NODE_NO_ORD_CHANGE            \
-  1 /* no secondary index record will be  \
+  1 /* 更新中不会更改二级索引记录，也不会更改聚集索引的排序字段；no secondary index record will be  \
     changed in the update and no ordering \
     field of the clustered index */
 #define UPD_NODE_NO_SIZE_CHANGE        \
-  2    /* no record field size will be \
+  2    /* 更新中不会更改记录字段大小；no record field size will be \
        changed in the update */
 #endif /* !UNIV_HOTBACKUP */
 

@@ -33,7 +33,7 @@ template <typename T>
 class I_P_List_no_push_back;
 
 /**
-   Intrusive parameterized list.
+   侵入性参数化列表；Intrusive parameterized list.
 
    Unlike I_List does not require its elements to be descendant of ilink
    class and therefore allows them to participate in several such lists
@@ -87,7 +87,7 @@ class I_P_List : public C, public I {
     I::set_last(&m_first);
   }
   inline bool is_empty() const { return (m_first == NULL); }
-  inline void push_front(T *a) {
+  inline void push_front(T *a) {      // 用于在链表的前面插入一个新的元素
     *B::next_ptr(a) = m_first;
     if (m_first)
       *B::prev_ptr(m_first) = B::next_ptr(a);

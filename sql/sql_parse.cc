@@ -1156,7 +1156,7 @@ void cleanup_items(Item *item) {
     1  request of thread shutdown (see dispatch_command() description)
 */
 
-bool do_command(THD *thd) {
+bool do_command(THD *thd) {                       /// b96K6S ==> 服务端会话执行每一条命令的总入口
   bool return_value;
   int rc;
   NET *net = NULL;
@@ -1270,7 +1270,7 @@ bool do_command(THD *thd) {
   /* Restore read timeout value */
   my_net_set_read_timeout(net, thd->variables.net_read_timeout);
 
-  return_value = dispatch_command(thd, &com_data, command);
+  return_value = dispatch_command(thd, &com_data, command);         /// 02、b96K6S ==> 02、SQL 分发？
   thd->get_protocol_classic()->get_output_packet()->shrink(
       thd->variables.net_buffer_length);
 
@@ -1464,7 +1464,7 @@ static void check_secondary_engine_statement(THD *thd,
     1   request of thread shutdown, i. e. if command is
         COM_QUIT
 */
-bool dispatch_command(THD *thd, const COM_DATA *com_data,
+bool dispatch_command(THD *thd, const COM_DATA *com_data,       /// b96K6S ==> 将命令进行分发
                       enum enum_server_command command) {
   bool error = 0;
   Global_THD_manager *thd_manager = Global_THD_manager::get_instance();
@@ -1580,7 +1580,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
     goto done;
   }
 
-  switch (command) {
+  switch (command) {                                                /// b96K6S ==> 将命令进行分发
     case COM_INIT_DB: {
       LEX_STRING tmp;
       thd->status_var.com_stat[SQLCOM_CHANGE_DB]++;
@@ -1728,7 +1728,7 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
         mysqld_stmt_reset(thd, stmt);
       break;
     }
-    case COM_QUERY: {
+    case COM_QUERY: {                                               /// b96K6S ==> 将命令进行分发：case COM_QUERY
       DBUG_ASSERT(thd->m_digest == NULL);
       thd->m_digest = &thd->m_digest_state;
       thd->m_digest->reset(thd->m_token_array, max_digest_length);
@@ -1761,8 +1761,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       const auto saved_secondary_engine = thd->secondary_engine_optimization();
       thd->set_secondary_engine_optimization(
           Secondary_engine_optimization::PRIMARY_TENTATIVELY);
-
-      mysql_parse(thd, &parser_state);
+      // =>>
+      mysql_parse(thd, &parser_state);                              /// 03、b96K6S ==> 解析 SQL：case COM_QUERY
 
       // Check if the statement failed and needs to be restarted in
       // another storage engine.
@@ -1777,8 +1777,8 @@ bool dispatch_command(THD *thd, const COM_DATA *com_data,
       DBUG_EXECUTE_IF("parser_stmt_to_error_log_with_system_prio", {
         LogErr(SYSTEM_LEVEL, ER_PARSER_TRACE, thd->query().str);
       });
-
-      while (!thd->killed && (parser_state.m_lip.found_semicolon != NULL) &&
+      // 如果线程未被 kill、多条语句一起执行、未出现 Error，三者同时满足，继续迭代分发 SQL，解析执行下一条语句
+      while (!thd->killed && (parser_state.m_lip.found_semicolon != NULL) &&    //
              !thd->is_error()) {
         /*
           Multiple queries exits, execute them individually
@@ -2141,16 +2141,16 @@ done:
               (thd->locked_tables_mode == LTM_LOCK_TABLES));
 
   /* Finalize server status flags after executing a command. */
-  thd->update_slow_query_status();
-  if (thd->killed) thd->send_kill_message();
-  thd->send_statement_status();
+  thd->update_slow_query_status();                      // 记录慢查询
+  if (thd->killed) thd->send_kill_message();            // 如果线程被 kill，发送 kill 响应
+  thd->send_statement_status();                         // 给客户端发送语句执行结果信息，当前方法执行完后，客户端将收到响应
 
   /* After sending response, switch to clone protocol */
   if (clone_cmd != nullptr) {
     DBUG_ASSERT(command == COM_CLONE);
     error = clone_cmd->execute_server(thd);
   }
-
+  // 更新用于主从同步的全局事务 ID，gtID，如果不为空的话
   thd->rpl_thd_ctx.session_gtids_ctx().notify_after_response_packet(thd);
 
   if (!thd->is_error() && !thd->killed)
@@ -2167,11 +2167,11 @@ done:
   mysql_audit_notify(thd, AUDIT_EVENT(MYSQL_AUDIT_COMMAND_END), command,
                      command_name[command].str);
 
-  log_slow_statement(thd, query_start_status_ptr);
+  log_slow_statement(thd, query_start_status_ptr);              // 记录慢查询
 
   THD_STAGE_INFO(thd, stage_cleaning_up);
 
-  thd->reset_query();
+  thd->reset_query();                                           // 重置当前线程 query
   thd->set_command(COM_SLEEP);
   thd->proc_info = 0;
   thd->lex->sql_command = SQLCOM_END;
@@ -2184,7 +2184,7 @@ done:
   /* Prevent rewritten query from getting "stuck" in SHOW PROCESSLIST. */
   thd->rewritten_query.mem_free();
 
-  thd_manager->dec_thread_running();
+  thd_manager->dec_thread_running();                            // 活动线程数 -1
 
   /* Freeing the memroot will leave the THD::work_part_info invalid. */
   thd->work_part_info = nullptr;
@@ -2198,15 +2198,15 @@ done:
 
     The factor 5 is pretty much arbitrary, but ends up allowing three
     allocations (1 + 1.5 + 1.5²) under the current allocation policy.
-  */
+  */  // 释放存储语句解析和执行期间创建的对象的内存块大小
   if (thd->mem_root->allocated_size() < 5 * thd->variables.query_prealloc_size)
-    thd->mem_root->ClearForReuse();
+    thd->mem_root->ClearForReuse();       // 如果没有超过 query_prealloc_size 大小，则将对应内存置空即可
   else
-    thd->mem_root->Clear();
+    thd->mem_root->Clear();               // 否则需要手动回收
 
     /* SHOW PROFILE instrumentation, end */
 #if defined(ENABLED_PROFILING)
-  thd->profiling->finish_current_query();
+  thd->profiling->finish_current_query(); // 如果开启了 profiling，则记录
 #endif
 
   return error;
@@ -2443,8 +2443,8 @@ static bool sp_process_definer(THD *thd) {
 }
 
 /**
-  Auxiliary call that opens and locks tables for LOCK TABLES statement
-  and initializes the list of locked tables.
+  为 LOCK TABLES 打开 和 锁定表并初始化锁定表 列表的辅助调用
+  Auxiliary call that opens and locks tables for LOCK TABLES statement and initializes the list of locked tables.
 
   @param thd     Thread context.
   @param tables  List of tables to be locked.
@@ -2455,15 +2455,15 @@ static bool sp_process_definer(THD *thd) {
 static bool lock_tables_open_and_lock_tables(THD *thd, TABLE_LIST *tables) {
   Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
   MDL_deadlock_and_lock_abort_error_handler deadlock_handler;
-  MDL_savepoint mdl_savepoint = thd->mdl_context.mdl_savepoint();
+  MDL_savepoint mdl_savepoint = thd->mdl_context.mdl_savepoint();       // TODO 2023-05-28：???
   uint counter;
   TABLE_LIST *table;
 
-  thd->in_lock_tables = 1;
+  thd->in_lock_tables = 1;                                              // TODO 2023-05-28：???
 
 retry:
-
-  if (open_tables(thd, &tables, &counter, 0, &lock_tables_prelocking_strategy))
+  // MDL -> 1
+  if (open_tables(thd, &tables, &counter, 0, &lock_tables_prelocking_strategy))   // =>>
     goto err;
 
   deadlock_handler.init();
@@ -2519,9 +2519,9 @@ retry:
   }
 
   thd->pop_internal_handler();
-
+  // After MDL， 上面刚 open_tables(..) -> MDL
   if (lock_tables(thd, tables, counter, 0) ||
-      thd->locked_tables_list.init_locked_tables(thd))
+      thd->locked_tables_list.init_locked_tables(thd))    // TODO 2023-05-29：没看懂要搞啥
     goto err;
 
   thd->in_lock_tables = 0;
@@ -2621,7 +2621,7 @@ static inline void binlog_gtid_end_transaction(THD *thd) {
     true        Error
 */
 
-int mysql_execute_command(THD *thd, bool first_level) {
+int mysql_execute_command(THD *thd, bool first_level) {     /// TODO：b96K6S ==> 05-1、【重要】SQL 入口
   int res = false;
   LEX *const lex = thd->lex;
   /* first SELECT_LEX (have special meaning for many of non-SELECTcommands) */
@@ -2987,7 +2987,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
     goto error;
   }
 
-  switch (lex->sql_command) {
+  switch (lex->sql_command) {                               /// b96K6S ==> 05-2、
     case SQLCOM_SHOW_STATUS: {
       System_status_var old_status_var = thd->status_var;
       thd->initial_status_var = &old_status_var;
@@ -3447,7 +3447,8 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_LOAD: {
       DBUG_ASSERT(first_table == all_tables && first_table != 0);
       DBUG_ASSERT(lex->m_sql_cmd != NULL);
-      res = lex->m_sql_cmd->execute(thd);
+      // Update ... Where ...；
+      res = lex->m_sql_cmd->execute(thd);       // update
       break;
     }
     case SQLCOM_DROP_TABLE: {
@@ -3569,7 +3570,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
         */
         if (trans_check_state(thd)) return -1;
         res = trans_commit_implicit(thd);
-        thd->locked_tables_list.unlock_locked_tables(thd);
+        thd->locked_tables_list.unlock_locked_tables(thd);      // UNLOCK TABLES ;
         thd->mdl_context.release_transactional_locks();
         thd->variables.option_bits &= ~(OPTION_TABLE_LOCK);
       }
@@ -3578,15 +3579,15 @@ int mysql_execute_command(THD *thd, bool first_level) {
       if (res) goto error;
       my_ok(thd);
       break;
-    case SQLCOM_LOCK_TABLES:
+    case SQLCOM_LOCK_TABLES:      // "LOCK TABLES ... WRITE"
       /*
-        Can we commit safely? If not, return to avoid releasing
-        transactional metadata locks.
+        我们能否安全地提交?如果不能，请返回以避免释放 事务 元数据锁
+        Can we commit safely? If not, return to avoid releasing transactional metadata locks.
       */
       if (trans_check_state(thd)) return -1;
       /* We must end the transaction first, regardless of anything */
       res = trans_commit_implicit(thd);
-      thd->locked_tables_list.unlock_locked_tables(thd);
+      thd->locked_tables_list.unlock_locked_tables(thd);      // TODO 2023-05-30：有空再看看
       /* Release transactional metadata locks. */
       thd->mdl_context.release_transactional_locks();
       if (res) goto error;
@@ -4427,7 +4428,7 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_UNINSTALL_COMPONENT:
     case SQLCOM_SHUTDOWN:
     case SQLCOM_ALTER_INSTANCE:
-    case SQLCOM_SELECT:
+    case SQLCOM_SELECT:                               /// b96K6S ==> 05、case SQLCOM_SELECT
     case SQLCOM_DO:
     case SQLCOM_CALL:
     case SQLCOM_CREATE_ROLE:
@@ -4450,8 +4451,9 @@ int mysql_execute_command(THD *thd, bool first_level) {
     case SQLCOM_DROP_SRS:
 
       DBUG_ASSERT(lex->m_sql_cmd != nullptr);
-      res = lex->m_sql_cmd->execute(thd);
-      break;
+      /// bool Sql_cmd_dml::execute(THD *thd) {
+      res = lex->m_sql_cmd->execute(thd);                /// 05、TODO：b96K6S ==> 05-2、bool Sql_cmd_dml::execute(THD *thd) {
+      break;    // thd 0x7feb8c069200
 
     case SQLCOM_ALTER_USER: {
       LEX_USER *user, *tmp_user;
@@ -4621,9 +4623,9 @@ finish:
     }
   }
 
-  lex->unit->cleanup(thd, true);
+  lex->unit->cleanup(thd, true);                      // 清理 thd 对象资源
   /* Free tables */
-  THD_STAGE_INFO(thd, stage_closing_tables);
+  THD_STAGE_INFO(thd, stage_closing_tables);              // 关闭表
   close_thread_tables(thd);
 
 #ifndef DBUG_OFF
@@ -4631,7 +4633,7 @@ finish:
     DEBUG_SYNC(thd, "execute_command_after_close_tables");
 #endif
 
-  if (!thd->in_sub_stmt && thd->transaction_rollback_request) {
+  if (!thd->in_sub_stmt && thd->transaction_rollback_request) {   // 释放事务相关资源
     /*
       We are not in sub-statement and transaction rollback was requested by
       one of storage engines (e.g. due to deadlock). Rollback transaction in
@@ -4902,7 +4904,7 @@ bool show_precheck(THD *thd, LEX *lex, bool lock) {
   return false;
 }
 
-bool execute_show(THD *thd, TABLE_LIST *all_tables) {
+bool execute_show(THD *thd, TABLE_LIST *all_tables) {               /// b96K6S ==> 06-1、
   DBUG_TRACE;
   LEX *lex = thd->lex;
   bool statement_timer_armed = false;
@@ -4930,13 +4932,13 @@ bool execute_show(THD *thd, TABLE_LIST *all_tables) {
       */
       Query_result *const result = new (thd->mem_root) Query_result_send();
       if (!result) return true; /* purecov: inspected */
-      res = handle_query(thd, lex, result, 0, 0);
+      res = handle_query(thd, lex, result, 0, 0);         /// b96K6S
     } else {
       Query_result *result = lex->result;
       if (!result && !(result = new (thd->mem_root) Query_result_send()))
         return true; /* purecov: inspected */
       Query_result *save_result = result;
-      res = handle_query(thd, lex, result, 0, 0);
+      res = handle_query(thd, lex, result, 0, 0);         /// b96K6S ==> 06-2、
       if (save_result != lex->result) destroy(save_result);
     }
   }
@@ -5137,7 +5139,7 @@ bool create_select_for_variable(Parse_context *pc, const char *var_name) {
   @param parser_state Parser state.
 */
 
-void mysql_parse(THD *thd, Parser_state *parser_state) {
+void mysql_parse(THD *thd, Parser_state *parser_state) {      // =>>
   DBUG_TRACE;
   DBUG_PRINT("mysql_parse", ("query: '%s'", thd->query().str));
 
@@ -5158,7 +5160,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state) {
   bool err = thd->get_stmt_da()->is_error();
 
   if (!err) {
-    err = parse_sql(thd, parser_state, NULL);
+    err = parse_sql(thd, parser_state, NULL);               /// b96K6S ==> 04-1、SQL 词法语法的解析工作
     if (!err) err = invoke_post_parse_rewrite_plugins(thd, false);
 
     found_semicolon = parser_state->m_lip.found_semicolon;
@@ -5254,7 +5256,7 @@ void mysql_parse(THD *thd, Parser_state *parser_state) {
           bool switched = mgr_ptr->switch_resource_group_if_needed(
               thd, &src_res_grp, &dest_res_grp, &ticket, &cur_ticket);
 
-          error = mysql_execute_command(thd, true);
+          error = mysql_execute_command(thd, true);         /// 04、TODO：b96K6S ==> 04-2、将命令进行分发
 
           if (switched)
             mgr_ptr->restore_original_resource_group(thd, src_res_grp,
@@ -5299,8 +5301,8 @@ void mysql_parse(THD *thd, Parser_state *parser_state) {
   THD_STAGE_INFO(thd, stage_freeing_items);
   sp_cache_enforce_limit(thd->sp_proc_cache, stored_program_cache_size);
   sp_cache_enforce_limit(thd->sp_func_cache, stored_program_cache_size);
-  thd->end_statement();
-  thd->cleanup_after_query();
+  thd->end_statement();                                 // 清理当前 SQL 处理状态，以便下次重用
+  thd->cleanup_after_query();                           // 将线程数据重置为其默认状态
   DBUG_ASSERT(thd->change_list.is_empty());
 
   DEBUG_SYNC(thd, "query_rewritten");
@@ -6996,7 +6998,7 @@ class Parser_oom_handler : public Internal_error_handler {
     @retval true on parsing error.
 */
 
-bool parse_sql(THD *thd, Parser_state *parser_state,
+bool parse_sql(THD *thd, Parser_state *parser_state,                /// b96K6S ==> 进行 SQL 词法语法的解析工作，然后调用 mysql_execute_command 进行执行；
                Object_creation_ctx *creation_ctx) {
   DBUG_TRACE;
   bool ret_value;
@@ -7054,7 +7056,7 @@ bool parse_sql(THD *thd, Parser_state *parser_state,
 
   thd->push_diagnostics_area(parser_da, false);
 
-  bool mysql_parse_status = thd->sql_parser();
+  bool mysql_parse_status = thd->sql_parser();                    // =>> update
 
   thd->pop_internal_handler();
   thd->mem_root->set_max_capacity(0);

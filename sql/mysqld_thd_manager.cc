@@ -191,7 +191,7 @@ void Global_THD_manager::destroy_instance() {
 void Global_THD_manager::add_thd(THD *thd) {
   DBUG_PRINT("info", ("Global_THD_manager::add_thd %p", thd));
   // Should have an assigned ID before adding to the list.
-  DBUG_ASSERT(thd->thread_id() != reserved_thread_id);
+  DBUG_ASSERT(thd->thread_id() != reserved_thread_id);                    //
   const int partition = thd_partition(thd->thread_id());
   MUTEX_LOCK(lock_list, &LOCK_thd_list[partition]);
   // Technically it is not supported to compare pointers, but it works.

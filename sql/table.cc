@@ -5632,7 +5632,7 @@ void TABLE::mark_columns_needed_for_delete(THD *thd) {
 
 /**
   @brief
-  Mark columns needed for doing an update of a row
+  标记更新行所需的列；Mark columns needed for doing an update of a row
 
   @details
     Some engines needs to have all columns in an update (to be able to
@@ -5706,7 +5706,7 @@ void TABLE::mark_columns_needed_for_update(THD *thd, bool mark_binlog_columns) {
 }
 
 /*
-  Mark columns according the binlog row image option.
+  根据二进制日志行图像选项标记列；Mark columns according the binlog row image option.
 
   When logging in RBR, the user can select whether to
   log partial or full rows, depending on the table
@@ -6920,8 +6920,8 @@ bool TABLE_LIST::generate_keys() {
   @retval false  success
 
   @note
-    Set const_key_parts bits if key fields are equal to constants in
-    the WHERE expression.
+    如果键字段等于 WHERE 表达式中的常量，则设置 const_key_parts 位
+    Set const_key_parts bits if key fields are equal to constants in the WHERE expression.
 */
 
 bool TABLE::update_const_key_parts(Item *conds) {
@@ -6930,7 +6930,7 @@ bool TABLE::update_const_key_parts(Item *conds) {
   if (conds == NULL) return false;
 
   for (uint index = 0; index < s->keys; index++) {
-    KEY_PART_INFO *keyinfo = key_info[index].key_part;
+    KEY_PART_INFO *keyinfo = key_info[index].key_part;        // keyinfo->field->field_name = "id"
     KEY_PART_INFO *keyinfo_end =
         keyinfo + key_info[index].user_defined_key_parts;
 

@@ -110,7 +110,7 @@ bool Shared_dictionary_cache::get_uncached(THD *thd, const K &key,
                                            enum_tx_isolation isolation,
                                            const T **object) const {
   DBUG_ASSERT(object);
-  bool error = Storage_adapter::get(thd, key, isolation, false, object);
+  bool error = Storage_adapter::get(thd, key, isolation, false, object);      // =>>
   DBUG_ASSERT(!error || thd->is_system_thread() || thd->killed ||
               thd->is_error());
 

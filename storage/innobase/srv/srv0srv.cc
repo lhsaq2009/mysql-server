@@ -351,7 +351,7 @@ bool srv_inject_too_many_concurrent_trxs = false;
 
 ulong srv_flush_log_at_trx_commit = 1;
 uint srv_flush_log_at_timeout = 1;
-ulong srv_page_size = UNIV_PAGE_SIZE_DEF;
+ulong srv_page_size = UNIV_PAGE_SIZE_DEF;     // 16KB
 ulong srv_page_size_shift = UNIV_PAGE_SIZE_SHIFT_DEF;
 
 page_size_t univ_page_size(0, 0, false);

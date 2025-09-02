@@ -175,8 +175,7 @@ bool row_undo_search_clust_to_pcur(
 
   clust_index = node->table->first_index();
 
-  found = row_search_on_row_ref(&node->pcur, BTR_MODIFY_LEAF, node->table,
-                                node->ref, &mtr);
+  found = row_search_on_row_ref(&node->pcur, BTR_MODIFY_LEAF, node->table, node->ref, &mtr);
 
   if (!found) {
     goto func_exit;
@@ -239,9 +238,9 @@ func_exit:
   return (found);
 }
 
-/** Fetches an undo log record and does the undo for the recorded operation.
- If none left, or a partial rollback completed, returns control to the
- parent node, which is always a query thread node.
+/** 获取撤消日志记录，并对记录的操作执行撤消。 如果没有留下任何内容，或者部分回滚已完成，则将控制权返回到 父节点，始终是查询线程节点。
+ * Fetches an undo log record and does the undo for the recorded operation.
+ If none left, or a partial rollback completed, returns control to the parent node, which is always a query thread node.
  @return DB_SUCCESS if operation successfully completed, else error code */
 static MY_ATTRIBUTE((warn_unused_result)) dberr_t
     row_undo(undo_node_t *node, /*!< in: row undo node */

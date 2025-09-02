@@ -1142,7 +1142,7 @@ func_end:
   return (err);
 }
 
-/** Sets a lock on a record.
+/** Sets a lock on a record. 设置记录的锁定
 mostly due to we cannot reposition a record in R-Tree (with the
 nature of splitting)
 @param[in]	pcur		cursor
@@ -1152,7 +1152,7 @@ nature of splitting)
 @param[in]	sel_mode	select mode: SELECT_ORDINARY,
                                 SELECT_SKIP_LOKCED, or SELECT_NO_WAIT
 @param[in]	mode		lock mode
-@param[in]	type		LOCK_ORDINARY, LOCK_GAP, or LOC_REC_NOT_GAP
+@param[in]	type		✅ LOCK_ORDINARY, LOCK_GAP, or LOC_REC_NOT_GAP
 @param[in]	thr		query thread
 @param[in]	mtr		mtr
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
@@ -1178,7 +1178,7 @@ dberr_t sel_set_rec_lock(btr_pcur_t *pcur, const rec_t *rec,
     }
   }
 
-  if (index->is_clustered()) {
+  if (index->is_clustered()) {                // 是不是聚集索引
     err = lock_clust_rec_read_check_and_lock(
         lock_duration_t::REGULAR, block, rec, index, offsets, sel_mode,
         static_cast<lock_mode>(mode), type, thr);
@@ -2754,7 +2754,7 @@ void row_sel_field_store_in_mysql_format_func(byte *dest,
   }
 }
 
-/** Convert a field from Innobase format to MySQL format. */
+/** 将字段从▁Innobase▁格式转换为▁MySQL▁格式；Convert a field from Innobase format to MySQL format. */
 #define row_sel_store_mysql_field(m, p, r, i, o, f, t, s, l, bh) \
   row_sel_store_mysql_field_func(m, p, r, i, o, f, t, s, l, bh)
 // clang-format off
@@ -2887,7 +2887,7 @@ static MY_ATTRIBUTE((warn_unused_result)) bool row_sel_store_mysql_field_func(
       mem_heap_free(heap);
     }
   } else {
-    /* Field is stored in the row. */
+    /* 字段存储在行中；Field is stored in the row. */
 
     data = rec_get_nth_field_instant(rec, offsets, field_no, index, &len);
 
@@ -3094,7 +3094,7 @@ bool row_sel_store_mysql_rec(byte *mysql_rec, row_prebuilt_t *prebuilt,
   return true;
 }
 
-/** Builds a previous version of a clustered index record for a consistent read
+/** TODO 2023-06-02：生成以前版本的聚集索引记录以实现一致读取；Builds a previous version of a clustered index record for a consistent read
 @param[in]	read_view	read view
 @param[in]	clust_index	clustered index
 @param[in]	prebuilt	prebuilt struct
@@ -3338,7 +3338,7 @@ dberr_t Row_sel_get_clust_rec_for_mysql::operator()(
 
     old_vers = NULL;
 
-    /* If the isolation level allows reading of uncommitted data,
+    /* TODO 2023-06-02：如果隔离级别允许读取未提交的数据，那么我们永远不会寻找早期版本；If the isolation level allows reading of uncommitted data,
     then we never look for an earlier version */
 
     if (trx->isolation_level > TRX_ISO_READ_UNCOMMITTED &&
@@ -4276,7 +4276,7 @@ about the relation between the row being processed, and the range of the scan */
 struct row_to_range_relation_t {
   /** true: we don't know, false: row is not in range */
   bool row_can_be_in_range;
-  /** true: we don't know, false: gap has nothing in common with range */
+  /** true: we don't know, false: 间隙与范围没有任何共同之处；gap has nothing in common with range */
   bool gap_can_intersect_range;
   /** true: row exactly matches end of range, false: we don't know */
   bool row_must_be_at_end;
@@ -4414,7 +4414,7 @@ It also has optimization such as pre-caching the rows, using AHI, etc.
                                 pcur with stored position! In opening of a
                                 cursor 'direction' should be 0.
 @return DB_SUCCESS or error code */
-dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
+dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,                             //
                         row_prebuilt_t *prebuilt, ulint match_mode,
                         ulint direction) {
   DBUG_TRACE;
@@ -4422,7 +4422,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   dict_index_t *index = prebuilt->index;
   ibool comp = dict_table_is_comp(index->table);
   const dtuple_t *search_tuple = prebuilt->search_tuple;
-  btr_pcur_t *pcur = prebuilt->pcur;
+  btr_pcur_t *pcur = prebuilt->pcur;                // B-Tree 的查找指针 ？？
   trx_t *trx = prebuilt->trx;
   dict_index_t *clust_index;
   /* True if we are scanning a secondary index, but the template is based
@@ -4430,11 +4430,11 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   bool clust_templ_for_sec;
   que_thr_t *thr;
   const rec_t *prev_rec = NULL;
-  const rec_t *rec = NULL;
+  const rec_t *rec = NULL;                    // 可能是符合要求的目标记录，地址
   byte *end_range_cache = NULL;
   const dtuple_t *prev_vrow = NULL;
   const dtuple_t *vrow = NULL;
-  const rec_t *result_rec = NULL;
+  const rec_t *result_rec = NULL;             // 检索的记录结果
   const rec_t *clust_rec;
   Row_sel_get_clust_rec_for_mysql row_sel_get_clust_rec_for_mysql;
   dberr_t err = DB_SUCCESS;
@@ -4507,7 +4507,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   individual row. */
   std::fill_n(prebuilt->new_rec_lock, row_prebuilt_t::LOCK_COUNT, false);
   /*-------------------------------------------------------------*/
-  /* PHASE 1: Try to pop the row from the record buffer or from
+  /* PHASE 1: 尝试从记录缓冲区 或 预取缓存中弹出行；Try to pop the row from the record buffer or from
   the prefetch cache */
 
   const auto record_buffer = row_sel_get_record_buffer(prebuilt);
@@ -4551,7 +4551,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
       ut_ad(record_buffer == nullptr);
 
     } else if (UNIV_LIKELY(prebuilt->n_fetch_cached > 0)) {
-      row_sel_dequeue_cached_row_for_mysql(buf, prebuilt);
+      row_sel_dequeue_cached_row_for_mysql(buf, prebuilt);      // TODO 2023-06-01：何时？？数据页缓存？
 
       prebuilt->n_rows_fetched++;
 
@@ -4742,7 +4742,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
   }
 
   /*-------------------------------------------------------------*/
-  /* PHASE 3: Open or restore index cursor position */
+  /* PHASE 3: 打开或恢复索引光标位置；Open or restore index cursor position */
 
   spatial_search = dict_index_is_spatial(index) && mode >= PAGE_CUR_CONTAIN;
 
@@ -4807,12 +4807,12 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
       fputc('\n', stderr);
       ut_error;
     }
-  } else if (prebuilt->select_lock_type == LOCK_NONE) {
+  } else if (prebuilt->select_lock_type == LOCK_NONE) {     // 非锁定读：5
     /* This is a consistent read */
-    /* Assign a read view for the query */
+    /* 为查询分配一个读取视图；Assign a read view for the query */
 
     if (!srv_read_only_mode) {
-      trx_assign_read_view(trx);
+      trx_assign_read_view(trx);                            // =>> 创建并返回 ReadView
     }
 
     prebuilt->sql_stat_start = FALSE;
@@ -4886,7 +4886,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
 
     pcur->m_trx_if_known = trx;
 
-    rec = btr_pcur_get_rec(pcur);
+    rec = btr_pcur_get_rec(pcur);       // TODO 2023-05-31：何时这里就取到数据了，内部不清楚 ???
 
     if (!moves_up && !page_rec_is_supremum(rec) && set_also_gap_locks &&
         !trx->skip_gap_locks() && prebuilt->select_lock_type != LOCK_NONE &&
@@ -4922,7 +4922,7 @@ dberr_t row_search_mvcc(byte *buf, page_cur_mode_t mode,
 rec_loop:
   DEBUG_SYNC_C("row_search_rec_loop");
 
-  prebuilt->lob_undo_reset();
+  prebuilt->lob_undo_reset();         // TODO 2023-06-02：???
 
   if (trx_is_interrupted(trx)) {
     if (!spatial_search) {
@@ -4933,16 +4933,16 @@ rec_loop:
   }
 
   /*-------------------------------------------------------------*/
-  /* PHASE 4: Look for matching records in a loop */
-
+  /* PHASE 4: 在循环中查找匹配的记录；Look for matching records in a loop */
+  // eg 1："infimum", 内存：0x00007fc1d7161100   78 54 8d cd   c1 7f
   rec = btr_pcur_get_rec(pcur);
+  // 10086 = 0x2766 => 内存：80 00 27 66
+  ut_ad(!!page_rec_is_comp(rec) == comp);     // 记录的格式是不是压缩格式
 
-  ut_ad(!!page_rec_is_comp(rec) == comp);
-
-  if (page_rec_is_infimum(rec)) {
+  if (page_rec_is_infimum(rec)) {               // 是 infimum 记录 ？？？
     /* The infimum record on a page cannot be in the result set,
     and neither can a record lock be placed on it: we skip such
-    a record. */
+    a record. 页面上的最小记录不能在结果集中,也不能对其放置记录锁:我们跳过这样的记录 */
 
     prev_rec = NULL;
     goto next_rec;
@@ -5028,11 +5028,10 @@ rec_loop:
   }
 
   /*-------------------------------------------------------------*/
-  /* Do sanity checks in case our cursor has bumped into page
-  corruption */
+  /* Do sanity checks in case our cursor has bumped into page corruption */
 
-  if (comp) {
-    next_offs = rec_get_next_offs(rec, TRUE);
+  if (comp) {                                               // 若记录是压缩格式
+    next_offs = rec_get_next_offs(rec, TRUE);         // TODO 2023-05-31：?? 怎么计算的不一样呢
     if (UNIV_UNLIKELY(next_offs < PAGE_NEW_SUPREMUM)) {
       goto wrong_offs;
     }
@@ -5182,8 +5181,8 @@ rec_loop:
     }
   }
 
-  /* We are ready to look at a possible new index entry in the result
-  set: the cursor is now placed on a user record */
+  /* 我们已准备好查看结果中可能的新索引条目设置：光标现在放置在用户记录上
+   * We are ready to look at a possible new index entry in the result set: the cursor is now placed on a user record */
 
   if (prebuilt->select_lock_type != LOCK_NONE) {
     auto row_to_range_relation = row_compare_row_to_range(
@@ -5206,7 +5205,25 @@ rec_loop:
       }
     }
 
-    err = sel_set_rec_lock(pcur, rec, index, offsets, prebuilt->select_mode,
+    auto lock_type_str = "()";
+    switch (lock_type) {
+
+      case LOCK_GAP :         lock_type_str = "LOCK_GAP ( 间隙锁 )";         break;
+      case LOCK_REC_NOT_GAP : lock_type_str = "LOCK_REC_NOT_GAP ( 记录锁 )"; break;
+      case LOCK_ORDINARY:     lock_type_str = "LOCK_ORDINARY ( 临键锁 )";    break;
+
+      case LOCK_WAIT:lock_type_str = "LOCK_WAIT";break;
+      case LOCK_INSERT_INTENTION:lock_type_str = "LOCK_INSERT_INTENTION ( 插入意向锁 )";break;
+      case LOCK_PREDICATE:lock_type_str = "LOCK_PREDICATE";break;
+      case LOCK_PRDT_PAGE:lock_type_str = "LOCK_PRDT_PAGE";break;
+      default:
+        DBUG_ASSERT(false);
+    }
+
+    DBUG_PRINT("haisen", ("✅ Record ( key_type = %s，name = %s，v = %s )，using lock_type = %s ",
+            index->name.operator()(), pcur->m_btr_cur.index->fields->name.operator()(),
+            reinterpret_cast<char *>(pcur->m_btr_cur.page_cur.rec), lock_type_str));
+    err = sel_set_rec_lock(pcur, rec, index, offsets, prebuilt->select_mode,              // =>> sel_set_rec_lock
                            prebuilt->select_lock_type, lock_type, thr, &mtr);
 
     switch (err) {
@@ -5298,25 +5315,25 @@ rec_loop:
       goto normal_return;
     }
   } else {
-    /* This is a non-locking consistent read: if necessary, fetch
-    a previous version of the record */
+    /* 这是非锁定一致性读取：如有必要，获取记录的先前版本
+     * This is a non-locking consistent read: if necessary, fetch a previous version of the record */
 
     if (trx->isolation_level == TRX_ISO_READ_UNCOMMITTED) {
       /* Do nothing: we let a non-locking SELECT read the
       latest version of the record */
 
     } else if (index == clust_index) {
-      /* Fetch a previous version of the row if the current
+      /* 如果当前版本在快照中不可见，则获取该行的先前版本;如果我们设置了非常高的力恢复级别，我们尝试通过跳过此查找来避免崩溃  Fetch a previous version of the row if the current
       one is not visible in the snapshot; if we have a very
       high force recovery level set, we try to avoid crashes
       by skipping this lookup */
-
+      // rec：目前定位的那条记录的起始地址
       if (srv_force_recovery < 5 &&
-          !lock_clust_rec_cons_read_sees(rec, index, offsets,
+          !lock_clust_rec_cons_read_sees(rec, index, offsets,             // =>> MVCC：判断 Row 是否可见
                                          trx_get_read_view(trx))) {
-        rec_t *old_vers;
-        /* The following call returns 'offsets' associated with 'old_vers' */
-        err = row_sel_build_prev_vers_for_mysql(
+        rec_t *old_vers;      // TODO：去读版本链吗？？
+        /* 以下调用返回与“old_vers”关联的“偏移量”；The following call returns 'offsets' associated with 'old_vers' */
+        err = row_sel_build_prev_vers_for_mysql(      // 生成以前版本的聚集索引记录以实现一致读取
             trx->read_view, clust_index, prebuilt, rec, &offsets, &heap,
             &old_vers, need_vrow ? &vrow : NULL, &mtr,
             prebuilt->get_lob_undo());
@@ -5335,8 +5352,8 @@ rec_loop:
         rec = old_vers;
         prev_rec = rec;
       }
-    } else {
-      /* We are looking into a non-clustered index,
+
+    } else {  /* We are looking into a non-clustered index,
       and to get the right version of the record we
       have to look also into the clustered index: this
       is necessary, because we can only get the undo
@@ -5371,7 +5388,7 @@ rec_loop:
   point that rec is on a buffer pool page. Functions like
   page_rec_is_comp() cannot be used! */
 
-  if (rec_get_deleted_flag(rec, comp)) {
+  if (rec_get_deleted_flag(rec, comp)) {      // TODO：???
     /* The record is delete-marked: we can skip it */
 
     if (trx->allow_semi_consistent() &&
@@ -5404,7 +5421,7 @@ rec_loop:
     goto next_rec;
   }
 
-  /* Check if the record matches the index condition. */
+  /* 检查记录是否与索引条件匹配；Check if the record matches the index condition. */
   switch (row_search_idx_cond_check(buf, prebuilt, rec, offsets)) {
     case ICP_NO_MATCH:
       if (did_semi_consistent_read) {
@@ -5418,8 +5435,8 @@ rec_loop:
       break;
   }
 
-  /* Get the clustered index record if needed, if we did not do the
-  search using the clustered index. */
+  /* 如果需要，如果我们没有使用聚集索引进行搜索，请获取聚集索引记录
+   * Get the clustered index record if needed, if we did not do the search using the clustered index. */
 
   if (index != clust_index && prebuilt->need_to_access_clustered) {
   requires_clust_rec:
@@ -5668,10 +5685,10 @@ rec_loop:
     }
 
   } else {
-    /* We cannot use a record buffer for this scan, so assert that
-    we don't have one. If we have a record buffer here,
-    ha_innobase::is_record_buffer_wanted() should be updated so
-    that a buffer is not allocated unnecessarily. */
+    /* 我们不能对此扫描使用记录缓冲区，因此断言我们没有记录缓冲区。如果我们这里有一个记录缓冲区，
+     * 应该更新 ha_innobase::is_record_buffer_wanted()，这样就不会不必要地分配缓冲区
+     * We cannot use a record buffer for this scan, so assert that we don't have one. If we have a record buffer here,
+    ha_innobase::is_record_buffer_wanted() should be updated so that a buffer is not allocated unnecessarily. */
     ut_ad(record_buffer == nullptr);
 
     if (UNIV_UNLIKELY(prebuilt->template_type == ROW_MYSQL_DUMMY_TEMPLATE)) {
@@ -5688,14 +5705,14 @@ rec_loop:
              rec_offs_size(offsets));
       mach_write_to_4(buf, rec_offs_extra_size(offsets) + 4);
     } else if (!prebuilt->idx_cond && !prebuilt->innodb_api) {
-      /* The record was not yet converted to MySQL format. */
+      /* 记录尚未转换为 MySQL 格式；The record was not yet converted to MySQL format. */
       if (!row_sel_store_mysql_rec(
               buf, prebuilt, result_rec, vrow, result_rec != rec,
               result_rec != rec ? clust_index : index, offsets, false,
-              prebuilt->get_lob_undo(), nullptr)) {
-        /* Only fresh inserts may contain
-        incomplete externally stored
-        columns. Pretend that such records do
+              prebuilt->get_lob_undo(), nullptr)) {     // TODO 2023-06-02：get_lob_undo() 内容 NULL ???
+        /* 只有新插入物可能包含不完整的外部存储的色谱柱。假装此类记录不存在。
+         * 只能在 读取未提交的隔离级别 或 在回滚已恢复的事务时 访问此类记录。回滚发生在较低级别，而不是在这里
+        Only fresh inserts may contain incomplete externally stored columns. Pretend that such records do
         not exist. Such records may only be
         accessed at the READ UNCOMMITTED
         isolation level or when rolling back a
@@ -5820,7 +5837,7 @@ next_rec:
       move = rtr_pcur_move_to_next(search_tuple, mode, prebuilt->select_mode,
                                    pcur, 0, &mtr);
     } else {
-      move = btr_pcur_move_to_next(pcur, &mtr);
+      move = btr_pcur_move_to_next(pcur, &mtr);           // B-Tree 查找下一个记录
     }
 
     if (!move) {
@@ -6000,7 +6017,7 @@ func_exit:
 
   ut_a(!trx->has_search_latch);
 
-  return err;
+  return err;         // DB_SUCCESS
 }
 
 /** Count rows in a R-Tree leaf level.

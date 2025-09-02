@@ -51,7 +51,7 @@ IF(BUILD_BUNDLED_LZ4)
     ../extra/lz4/lz4frame.c
     ../extra/lz4/lz4hc.c
     ../extra/lz4/xxhash.c
-  )
+          )
 ENDIF()
 
 FILE(MAKE_DIRECTORY ${PROJECT_BINARY_DIR}/${INSTALL_MYSQLSHAREDIR})

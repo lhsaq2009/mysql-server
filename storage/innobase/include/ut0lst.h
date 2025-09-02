@@ -162,7 +162,7 @@ void ut_list_prepend(List &list, typename List::elem_type *elem) {
   ++list.count;
 }
 
-/** Adds the node as the first element in a two-way linked list.
+/** 将节点添加为双向链表中的第一个元素；Adds the node as the first element in a two-way linked list.
  @param LIST the base node (not a pointer to it)
  @param ELEM the element to add */
 #define UT_LIST_ADD_FIRST(LIST, ELEM) ut_list_prepend(LIST, ELEM)

@@ -917,7 +917,7 @@ que_thr_t *que_thr_step(que_thr_t *thr) /*!< in: query thread */
     thr = que_thr_node_step(thr);
   } else if (type == QUE_NODE_COMMIT) {
     thr = trx_commit_step(thr);
-  } else if (type == QUE_NODE_UNDO) {
+  } else if (type == QUE_NODE_UNDO) {         // 10
     thr = row_undo_step(thr);
   } else if (type == QUE_NODE_PURGE) {
     thr = row_purge_step(thr);
@@ -925,7 +925,7 @@ que_thr_t *que_thr_step(que_thr_t *thr) /*!< in: query thread */
     thr = return_step(thr);
   } else if (type == QUE_NODE_EXIT) {
     thr = exit_step(thr);
-  } else if (type == QUE_NODE_ROLLBACK) {
+  } else if (type == QUE_NODE_ROLLBACK) {     // 9
     thr = trx_rollback_step(thr);
   } else {
     ut_error;

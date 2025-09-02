@@ -729,7 +729,7 @@ Sql_cmd *PT_update::make_cmd(THD *thd) {
 
   if (opt_hints != NULL && opt_hints->contextualize(&pc)) return NULL;
 
-  return new (thd->mem_root) Sql_cmd_update(is_multitable, &value_list->value);
+  return new (thd->mem_root) Sql_cmd_update(is_multitable, &value_list->value);     // =>> is_multitable = false
 }
 
 bool PT_insert_values_list::contextualize(Parse_context *pc) {

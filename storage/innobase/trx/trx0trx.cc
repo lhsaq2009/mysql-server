@@ -1283,7 +1283,7 @@ static void trx_start_low(
 
     trx_sys_mutex_enter();
 
-    trx->id = trx_sys_get_new_trx_id();
+    trx->id = trx_sys_get_new_trx_id();       // =>>
 
     trx_sys->rw_trx_ids.push_back(trx->id);
 
@@ -2141,16 +2141,16 @@ void trx_cleanup_at_db_startup(trx_t *trx) /*!< in: transaction */
  within the same transaction will get the same read view, which is created
  when this function is first called for a new started transaction.
  @return consistent read view */
-ReadView *trx_assign_read_view(trx_t *trx) /*!< in/out: active transaction */
+ReadView *trx_assign_read_view(trx_t *trx) /*!< in/out: active transaction */   // MVCC：创建一致性视图 ReadView
 {
   ut_ad(trx->state == TRX_STATE_ACTIVE);
 
-  if (srv_read_only_mode) {
+  if (srv_read_only_mode) {                               // TODO：若只读事务，就没必要开启 ReadView ??? 需要测试
     ut_ad(trx->read_view == NULL);
     return (NULL);
 
   } else if (!MVCC::is_view_active(trx->read_view)) {
-    trx_sys->mvcc->view_open(trx->read_view, trx);
+    trx_sys->mvcc->view_open(trx->read_view, trx);      // =>>
   }
 
   return (trx->read_view);

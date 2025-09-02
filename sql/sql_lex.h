@@ -968,7 +968,7 @@ enum class enum_explain_type {
   a query consisting of a SELECT keyword, followed by a table list,
   optionally followed by a WHERE clause, a GROUP BY, etc.
 */
-class SELECT_LEX {
+class SELECT_LEX {          // TODO：备用
  public:
   Item *where_cond() const { return m_where_cond; }
   void set_where_cond(Item *cond) { m_where_cond = cond; }
@@ -1432,7 +1432,7 @@ class SELECT_LEX {
   bool has_explicit_limit_or_order() const {
     return explicit_limit || order_list.elements > 0;
   }
-  /// @return true if query block references full-text functions
+  /// @return 如果查询块引用全文函数，则为 true；    true if query block references full-text functions
   bool has_ft_funcs() const { return ftfunc_list->elements > 0; }
 
   /// @returns true if query block is a recursive member of a recursive unit

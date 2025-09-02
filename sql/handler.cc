@@ -2848,7 +2848,7 @@ int handler::ha_rnd_end() {
 }
 
 /**
-  Read next row via random scan.
+  通过随机扫描读取下一行；Read next row via random scan.
 
   @param buf  Buffer to read the row into
 
@@ -6242,7 +6242,7 @@ int handler::ha_multi_range_read_next(char **range_info) {
 }
 
 /**
-  Get next record in MRR scan
+  在 MRR 扫描中获取下一条记录；Get next record in MRR scan
 
   Default MRR implementation: read the next record
 
@@ -7671,8 +7671,8 @@ int handler::ha_external_lock(THD *thd, int lock_type) {
                         { error = external_lock(thd, lock_type); })
 
   /*
-    We cache the table flags if the locking succeeded. Otherwise, we
-    keep them as they were when they were fetched in ha_open().
+    如果锁定成功，我们将缓存 table flags。否则，我们将它们保持在 ha_open() 中获取时的状态
+    We cache the table flags if the locking succeeded. Otherwise, we keep them as they were when they were fetched in ha_open().
   */
 
   if (error == 0) {
@@ -7769,7 +7769,7 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data) {
       set_my_errno(HA_ERR_CRASHED); return (HA_ERR_CRASHED););
 
   MYSQL_TABLE_IO_WAIT(PSI_TABLE_UPDATE_ROW, active_index, error,
-                      { error = update_row(old_data, new_data); })
+                      { error = update_row(old_data, new_data); })      // =>>
 
   if (unlikely(error)) return error;
   if (unlikely((error = binlog_log_row(table, old_data, new_data, log_func))))

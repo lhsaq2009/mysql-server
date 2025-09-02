@@ -168,14 +168,14 @@ void trx_write_trx_id(byte *ptr,   /*!< in: pointer to memory where written */
 }
 
 #ifndef UNIV_HOTBACKUP
-/** Reads a trx id from an index page. In case that the id size changes in
+/** 从索引页读取 trx_id。如果 id 大小在将来的某个版本中发生变化，则应使用此函数而不是 mach_read_...；Reads a trx id from an index page. In case that the id size changes in
  some future version, this function should be used instead of
  mach_read_...
  @return id */
 UNIV_INLINE
 trx_id_t trx_read_trx_id(
     const byte *ptr) /*!< in: pointer to memory from where to read */
-{
+{ // 0x 00 00 00 00 14 05 => 5125
   return (mach_read_from_6(ptr));
 }
 

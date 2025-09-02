@@ -102,7 +102,7 @@ void mysql_reset_thd_for_next_command(THD *thd);
 bool create_select_for_variable(Parse_context *pc, const char *var_name);
 void create_table_set_open_action_and_adjust_tables(LEX *lex);
 int mysql_execute_command(THD *thd, bool first_level = false);
-bool do_command(THD *thd);
+bool do_command(THD *thd);    // No
 bool dispatch_command(THD *thd, const COM_DATA *com_data,
                       enum enum_server_command command);
 bool prepare_index_and_data_dir_path(THD *thd, const char **data_file_name,
@@ -136,7 +136,7 @@ bool sqlcom_can_generate_row_events(enum enum_sql_command command);
 bool all_tables_not_ok(THD *thd, TABLE_LIST *tables);
 bool some_non_temp_table_to_be_updated(THD *thd, TABLE_LIST *tables);
 
-bool execute_show(THD *thd, TABLE_LIST *all_tables);
+bool execute_show(THD *thd, TABLE_LIST *all_tables);    // No
 
 // TODO: remove after refactoring of ALTER DATABASE:
 bool set_default_charset(HA_CREATE_INFO *create_info,

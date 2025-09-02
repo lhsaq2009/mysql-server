@@ -60,7 +60,7 @@ enum mlog_id_t {
   /** if the mtr contains only one log record for one page,
   i.e., write_initial_log_record has been called only once,
   this flag is ORed to the type of that first log record */
-  MLOG_SINGLE_REC_FLAG = 128,
+  MLOG_SINGLE_REC_FLAG = 128,   // 在 type 最高位标志，标志这条 redo log 是单独的一组
 
   /** one byte is written */
   MLOG_1BYTE = 1,
@@ -141,9 +141,9 @@ enum mlog_id_t {
   /** write a string to a page */
   MLOG_WRITE_STRING = 30,
 
-  /** If a single mtr writes several log records, this log
+  /** 如果单个 MTR 写入多个日志记录，则此日志记录将结束这些记录的序列；If a single mtr writes several log records, this log
   record ends the sequence of these records */
-  MLOG_MULTI_REC_END = 31,
+  MLOG_MULTI_REC_END = 31,      // 特殊标志，标志前几条 Redo Log 作为一个组
 
   /** dummy log record used to pad a log block full */
   MLOG_DUMMY_RECORD = 32,
@@ -164,7 +164,7 @@ enum mlog_id_t {
   MLOG_COMP_PAGE_CREATE = 37,
 
   /** compact record insert */
-  MLOG_COMP_REC_INSERT = 38,
+  MLOG_COMP_REC_INSERT = 38,          // 乐观插入，数据页空闲空间充足，足够容纳这一条待插入记录
 
   /** mark compact clustered index record deleted */
   MLOG_COMP_REC_CLUST_DELETE_MARK = 39,
