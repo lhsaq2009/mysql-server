@@ -1613,6 +1613,15 @@ RecLock::deadlock_check(lock_t* lock)
 	ut_ad(lock->trx == m_trx);
 	ut_ad(trx_mutex_own(m_trx));
 
+	/* DEBUG: 添加调试日志 - 开始死锁检测 */
+	ib::info() << "IODKU_DEBUG: Transaction " << m_trx->id 
+		<< " starting deadlock check for lock"
+		<< " on table " << lock->index->table->name
+		<< " index " << lock->index->name
+		<< " space_id=" << lock->index->space
+		<< " page_no=" << lock_rec_get_page_no(lock)
+		<< " heap_no=" << lock_rec_get_n_bits(lock);
+
 	const trx_t*	victim_trx =
 			DeadlockChecker::check_and_resolve(lock, m_trx);
 
@@ -1621,6 +1630,18 @@ RecLock::deadlock_check(lock_t* lock)
 	were granted our lock. */
 
 	dberr_t	err = check_deadlock_result(victim_trx, lock);
+
+	/* DEBUG: 添加调试日志 - 死锁检测结果 */
+	if (err == DB_DEADLOCK) {
+		ib::info() << "IODKU_DEBUG: Transaction " << m_trx->id 
+			<< " detected DEADLOCK, victim transaction=" << victim_trx->id;
+	} else if (err == DB_LOCK_WAIT) {
+		ib::info() << "IODKU_DEBUG: Transaction " << m_trx->id 
+			<< " will wait for lock (DB_LOCK_WAIT)";
+	} else if (err == DB_SUCCESS_LOCKED_REC) {
+		ib::info() << "IODKU_DEBUG: Transaction " << m_trx->id 
+			<< " got lock immediately after deadlock resolution";
+	}
 
 	if (err == DB_LOCK_WAIT) {
 
@@ -6390,6 +6411,7 @@ lock_clust_rec_read_check_and_lock(
 {
 	dberr_t	err;
 	ulint	heap_no;
+	trx_t*	trx = thr_get_trx(thr);
 
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(block->frame == page_align(rec));
@@ -6397,6 +6419,17 @@ lock_clust_rec_read_check_and_lock(
 	ut_ad(gap_mode == LOCK_ORDINARY || gap_mode == LOCK_GAP
 	      || gap_mode == LOCK_REC_NOT_GAP);
 	ut_ad(rec_offs_validate(rec, index, offsets));
+
+	/* DEBUG: 添加调试日志 - 开始获取聚集索引锁 */
+	ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+		<< " attempting to acquire CLUSTERED INDEX lock"
+		<< " on table " << index->table->name
+		<< " index " << index->name
+		<< " space_id=" << index->space
+		<< " page_no=" << page_get_page_no(block->frame)
+		<< " heap_no=" << page_rec_get_heap_no(rec)
+		<< " lock_mode=" << mode
+		<< " gap_mode=" << gap_mode;
 
 	if ((flags & BTR_NO_LOCKING_FLAG)
 	    || srv_read_only_mode
@@ -6426,6 +6459,21 @@ lock_clust_rec_read_check_and_lock(
 	lock_mutex_exit();
 
 	ut_ad(lock_rec_queue_validate(FALSE, block, rec, index, offsets));
+
+	/* DEBUG: 添加调试日志 - 聚集索引锁获取结果 */
+	if (err == DB_SUCCESS) {
+		ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+			<< " successfully acquired CLUSTERED INDEX lock";
+	} else if (err == DB_LOCK_WAIT) {
+		ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+			<< " waiting for CLUSTERED INDEX lock (DB_LOCK_WAIT)";
+	} else if (err == DB_DEADLOCK) {
+		ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+			<< " detected DEADLOCK while acquiring CLUSTERED INDEX lock";
+	} else {
+		ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+			<< " failed to acquire CLUSTERED INDEX lock, error=" << err;
+	}
 
 	DEBUG_SYNC_C("after_lock_clust_rec_read_check_and_lock");
 
@@ -7461,6 +7509,14 @@ DeadlockChecker::search()
 	ut_ad(m_wait_lock != NULL);
 	check_trx_state(m_wait_lock->trx);
 	ut_ad(m_mark_start <= s_lock_mark_counter);
+
+	/* DEBUG: 添加调试日志 - 开始死锁搜索 */
+	ib::info() << "IODKU_DEBUG: DeadlockChecker starting search"
+		<< " for transaction " << m_start->id
+		<< " waiting for lock on table " << m_wait_lock->index->table->name
+		<< " index " << m_wait_lock->index->name
+		<< " space_id=" << m_wait_lock->index->space
+		<< " page_no=" << lock_rec_get_page_no(m_wait_lock);
 
 	/* Look at the locks ahead of wait_lock in the lock queue. */
 	ulint		heap_no;

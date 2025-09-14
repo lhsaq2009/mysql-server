@@ -1484,8 +1484,19 @@ row_ins_set_shared_rec_lock(
 	que_thr_t*		thr)	/*!< in: query thread */
 {
 	dberr_t	err;
+	trx_t*	trx = thr_get_trx(thr);
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
+
+	/* DEBUG: 添加调试日志 - 开始获取共享锁 */
+	ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+		<< " attempting to acquire SHARED lock"
+		<< " on table " << index->table->name
+		<< " index " << index->name
+		<< " space_id=" << index->space
+		<< " page_no=" << page_get_page_no(block->frame)
+		<< " heap_no=" << page_rec_get_heap_no(rec)
+		<< " lock_type=" << type;
 
 	if (dict_index_is_clust(index)) {
 		err = lock_clust_rec_read_check_and_lock(
@@ -1493,6 +1504,18 @@ row_ins_set_shared_rec_lock(
 	} else {
 		err = lock_sec_rec_read_check_and_lock(
 			0, block, rec, index, offsets, LOCK_S, type, thr);
+	}
+
+	/* DEBUG: 添加调试日志 - 锁获取结果 */
+	if (err == DB_SUCCESS) {
+		ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+			<< " successfully acquired SHARED lock";
+	} else if (err == DB_LOCK_WAIT) {
+		ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+			<< " waiting for SHARED lock (DB_LOCK_WAIT)";
+	} else {
+		ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+			<< " failed to acquire SHARED lock, error=" << err;
 	}
 
 	return(err);
@@ -1515,8 +1538,19 @@ row_ins_set_exclusive_rec_lock(
 	que_thr_t*		thr)	/*!< in: query thread */
 {
 	dberr_t	err;
+	trx_t*	trx = thr_get_trx(thr);
 
 	ut_ad(rec_offs_validate(rec, index, offsets));
+
+	/* DEBUG: 添加调试日志 - 开始获取排他锁 */
+	ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+		<< " attempting to acquire EXCLUSIVE lock"
+		<< " on table " << index->table->name
+		<< " index " << index->name
+		<< " space_id=" << index->space
+		<< " page_no=" << page_get_page_no(block->frame)
+		<< " heap_no=" << page_rec_get_heap_no(rec)
+		<< " lock_type=" << type;
 
 	if (dict_index_is_clust(index)) {
 		err = lock_clust_rec_read_check_and_lock(
@@ -1524,6 +1558,18 @@ row_ins_set_exclusive_rec_lock(
 	} else {
 		err = lock_sec_rec_read_check_and_lock(
 			0, block, rec, index, offsets, LOCK_X, type, thr);
+	}
+
+	/* DEBUG: 添加调试日志 - 锁获取结果 */
+	if (err == DB_SUCCESS) {
+		ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+			<< " successfully acquired EXCLUSIVE lock";
+	} else if (err == DB_LOCK_WAIT) {
+		ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+			<< " waiting for EXCLUSIVE lock (DB_LOCK_WAIT)";
+	} else {
+		ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+			<< " failed to acquire EXCLUSIVE lock, error=" << err;
 	}
 
 	return(err);
@@ -2326,11 +2372,29 @@ row_ins_duplicate_error_in_clust(
 				duplicates ( REPLACE, LOAD DATAFILE REPLACE,
 				INSERT ON DUPLICATE KEY UPDATE). */
 
+				/* DEBUG: 添加调试日志 - INSERT ON DUPLICATE KEY UPDATE 获取排他锁 */
+				ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+					<< " acquiring EXCLUSIVE lock for INSERT ON DUPLICATE KEY UPDATE"
+					<< " on table " << cursor->index->table->name
+					<< " index " << cursor->index->name
+					<< " space_id=" << cursor->index->space
+					<< " page_no=" << page_get_page_no(btr_cur_get_block(cursor)->frame)
+					<< " heap_no=" << page_rec_get_heap_no(rec);
+
 				err = row_ins_set_exclusive_rec_lock(
 					LOCK_REC_NOT_GAP,
 					btr_cur_get_block(cursor),
 					rec, cursor->index, offsets, thr);
 			} else {
+
+				/* DEBUG: 添加调试日志 - 普通INSERT获取共享锁 */
+				ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+					<< " acquiring SHARED lock for normal INSERT"
+					<< " on table " << cursor->index->table->name
+					<< " index " << cursor->index->name
+					<< " space_id=" << cursor->index->space
+					<< " page_no=" << page_get_page_no(btr_cur_get_block(cursor)->frame)
+					<< " heap_no=" << page_rec_get_heap_no(rec);
 
 				err = row_ins_set_shared_rec_lock(
 					LOCK_REC_NOT_GAP,
@@ -2371,11 +2435,29 @@ duplicate:
 				duplicates ( REPLACE, LOAD DATAFILE REPLACE,
 				INSERT ON DUPLICATE KEY UPDATE). */
 
+				/* DEBUG: 添加调试日志 - INSERT ON DUPLICATE KEY UPDATE 获取排他锁 (第二个位置) */
+				ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+					<< " acquiring EXCLUSIVE lock for INSERT ON DUPLICATE KEY UPDATE (second location)"
+					<< " on table " << cursor->index->table->name
+					<< " index " << cursor->index->name
+					<< " space_id=" << cursor->index->space
+					<< " page_no=" << page_get_page_no(btr_cur_get_block(cursor)->frame)
+					<< " heap_no=" << page_rec_get_heap_no(rec);
+
 				err = row_ins_set_exclusive_rec_lock(
 					LOCK_REC_NOT_GAP,
 					btr_cur_get_block(cursor),
 					rec, cursor->index, offsets, thr);
 			} else {
+
+				/* DEBUG: 添加调试日志 - 普通INSERT获取共享锁 (第二个位置) */
+				ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+					<< " acquiring SHARED lock for normal INSERT (second location)"
+					<< " on table " << cursor->index->table->name
+					<< " index " << cursor->index->name
+					<< " space_id=" << cursor->index->space
+					<< " page_no=" << page_get_page_no(btr_cur_get_block(cursor)->frame)
+					<< " heap_no=" << page_rec_get_heap_no(rec);
 
 				err = row_ins_set_shared_rec_lock(
 					LOCK_REC_NOT_GAP,
@@ -2482,6 +2564,17 @@ row_ins_clust_index_entry_low(
 	      || n_uniq == dict_index_get_n_unique(index));
 	ut_ad(!n_uniq || n_uniq == dict_index_get_n_unique(index));
 	ut_ad(!thr_get_trx(thr)->in_rollback);
+
+	/* DEBUG: 添加调试日志 - 开始插入聚集索引记录 */
+	trx_t* trx = thr_get_trx(thr);
+	ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+		<< " starting INSERT into clustered index"
+		<< " on table " << index->table->name
+		<< " index " << index->name
+		<< " space_id=" << index->space
+		<< " flags=" << flags
+		<< " mode=" << mode
+		<< " n_uniq=" << n_uniq;
 
 	mtr_start(&mtr);
 	mtr.set_named_space(index->space);
@@ -2671,6 +2764,24 @@ func_exit:
 	}
 
 	btr_pcur_close(&pcur);
+
+	/* DEBUG: 添加调试日志 - 插入聚集索引记录结果 */
+	if (err == DB_SUCCESS) {
+		ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+			<< " successfully inserted into clustered index";
+	} else if (err == DB_LOCK_WAIT) {
+		ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+			<< " waiting for lock during INSERT (DB_LOCK_WAIT)";
+	} else if (err == DB_DEADLOCK) {
+		ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+			<< " detected DEADLOCK during INSERT";
+	} else if (err == DB_DUPLICATE_KEY) {
+		ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+			<< " duplicate key error during INSERT";
+	} else {
+		ib::info() << "IODKU_DEBUG: Transaction " << trx->id 
+			<< " failed to insert into clustered index, error=" << err;
+	}
 
 	DBUG_RETURN(err);
 }
